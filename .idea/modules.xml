@@ -2,7 +2,10 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/Uma.iml" filepath="$PROJECT_DIR$/Uma.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea_modules/Uma.iml" filepath="$PROJECT_DIR$/.idea_modules/Uma.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea_modules/Uma-build.iml" filepath="$PROJECT_DIR$/.idea_modules/Uma-build.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/uma.iml" filepath="$PROJECT_DIR$/.idea/modules/uma.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/uma-build.iml" filepath="$PROJECT_DIR$/.idea/modules/uma-build.iml" />
     </modules>
   </component>
 </project>
