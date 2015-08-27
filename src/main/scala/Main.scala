@@ -8,12 +8,16 @@ object Main {
   val NUM_OF_GENERATION = 100001
   val NUM_OF_LABELS = 10
   val NUM_OF_ELITE = 4
+  val NUM_OF_SAVED_ELITE = 4
   val NUM_OF_LAYER = 3
 
+  val USE_BATCH = true
   val BATCH_SIZE = 500
+  val DATA_SIZE = 4000
+  val SIZE = if (USE_BATCH) BATCH_SIZE else DATA_SIZE
 
-  val CROSSING_RATE = 0.95
-  val MUTATION_RATE = 0.1
+  val CROSSING_RATE = 0.85
+  val MUTATION_RATE = 0.05
 
   def main(args: Array[String]) {
 
@@ -34,9 +38,19 @@ object Main {
     val y1 = y(0 until 4000)
     val y1val = y(4000 until 5000)
 
+    var a1_ = DenseMatrix.zeros[Double](BATCH_SIZE, 401)
+    var y1_ = DenseVector.zeros[Int](BATCH_SIZE)
+
+    var periodOfBatch = 500
+    var nextChange = 0
+    var currentElite: Option[Array[DenseMatrix[Double]]] = None
+    var currentMinCost = Double.MaxValue
+    var previousMinCost = Double.MaxValue
+    val savedEliteQueue = scala.collection.mutable.Queue[Array[DenseMatrix[Double]]]()
+
     val individuals = Array.ofDim[DenseMatrix[Double]](NUM_OF_INDIVIDUAL, NUM_OF_LAYER - 1)
 
-    for {i <- 0 until NUM_OF_INDIVIDUAL} {
+    for (i <- 0 until NUM_OF_INDIVIDUAL) {
       individuals(i)(0) = DenseMatrix.rand(25, 401) - 0.5
       individuals(i)(1) = DenseMatrix.rand(10, 26) - 0.5
     }
@@ -45,18 +59,47 @@ object Main {
       val costs = Array.ofDim[Double](NUM_OF_INDIVIDUAL)
       val scores = Array.ofDim[Double](NUM_OF_INDIVIDUAL)
 
-      val a1_ = DenseMatrix.zeros[Double](BATCH_SIZE, 401)
-      val y1_ = DenseVector.zeros[Int](BATCH_SIZE)
+      val (newa, newy) = {
+        if (USE_BATCH && i >= nextChange) {
+          val a1_ = DenseMatrix.zeros[Double](BATCH_SIZE, 401)
+          val y1_ = DenseVector.zeros[Int](BATCH_SIZE)
 
-      for (j <- 0 until BATCH_SIZE) {
-        val n = r.nextInt(4000)
-        a1_(j, ::) := a1(n, ::)
-        y1_(j) = y1(n)
+          if (currentMinCost > previousMinCost) {
+            periodOfBatch += 50
+          }
+          previousMinCost = currentMinCost
+          currentMinCost = Double.MaxValue
+          nextChange += periodOfBatch
+          println(s"period = $periodOfBatch")
+
+
+          currentElite.foreach { e =>
+            savedEliteQueue.enqueue(e)
+            if (savedEliteQueue.length > NUM_OF_SAVED_ELITE) {
+              savedEliteQueue.dequeue()
+            }
+            currentElite = None
+          }
+
+          for (j <- 0 until BATCH_SIZE) {
+            val n = r.nextInt(4000)
+            a1_(j, ::) := a1(n, ::)
+            y1_(j) = y1(n)
+          }
+
+          (a1_, y1_)
+        } else if (USE_BATCH) {
+          (a1_, y1_)
+        } else {
+          (a1, y1)
+        }
       }
+      a1_ = newa
+      y1_ = newy
 
       for (j <- 0 until NUM_OF_INDIVIDUAL) {
         val z2 = a1_ * individuals(j)(0).t
-        val a2 = DenseMatrix.horzcat(DenseMatrix.ones[Double](BATCH_SIZE, 1), sigmoid(z2))
+        val a2 = DenseMatrix.horzcat(DenseMatrix.ones[Double](SIZE, 1), sigmoid(z2))
         val z3 = a2 * individuals(j)(1).t
 
         val hx: DenseMatrix[Double] = sigmoid(z3)
@@ -67,14 +110,12 @@ object Main {
 
           val costk1: DenseVector[Double] = yk :* log(hxk.map(x => if (x == 0.0d) Double.MinPositiveValue else x))
           val costk2: DenseVector[Double] = (1.0d - yk) :* log((1.0d - hxk).map(x => if (x == 0.0d) Double.MinPositiveValue else x))
-          val costk = 1.0d / BATCH_SIZE * sum(-costk1 - costk2)
+          val costk = 1.0d / SIZE * sum(-costk1 - costk2)
 
           costs(j) += costk
         }
         scores(j) = 1.0d / (costs(j) + 1.0d)
       }
-
-      val total = scores.sum
 
       // 優秀な数匹は次の世代に持ち越し
       val elites = scores.zipWithIndex.sortBy {
@@ -82,6 +123,11 @@ object Main {
       }.map {
         case ((_, index)) => individuals(index).clone().map(_.copy)
       }.slice(0, NUM_OF_ELITE)
+
+      if (costs.min < currentMinCost) {
+        currentMinCost = costs.min
+        currentElite = Some(elites.head)
+      }
 
       if (i % 50 == 0)
         println(s"elite$i: cost = ${costs.min}")
@@ -94,17 +140,17 @@ object Main {
       // 交叉
       for (j <- 0 until NUM_OF_INDIVIDUAL / 2) {
         if (r.nextDouble() < CROSSING_RATE) {
-          val k0 = r.nextInt(401)
-          val temp0 = individuals(j * 2)(0)(::, k0 until 401)
-          individuals(j * 2)(0)(::, 0 until k0) := individuals(j * 2 + 1)(0)(::, 0 until k0)
-          individuals(j * 2 + 1)(0)(::, k0 until 401) := temp0
+          val k = DenseMatrix.rand[Double](25, 401).map(x => if (x < 0.5) 0.0d else 1.0d)
+          val tmp = individuals(j * 2)(0).copy
+          individuals(j * 2)(0) := (individuals(j * 2)(0) :* k) + (individuals(j * 2 + 1)(0) :* (1.0d - k))
+          individuals(j * 2 + 1)(0) := (individuals(j * 2 + 1)(0) :* k) + (tmp :* (1.0d - k))
         }
 
         if (r.nextDouble() < CROSSING_RATE) {
-          val k1 = r.nextInt(26)
-          val temp1 = individuals(j * 2)(1)(::, k1 until 26)
-          individuals(j * 2)(1)(::, 0 until k1) := individuals(j * 2 + 1)(1)(::, 0 until k1)
-          individuals(j * 2 + 1)(1)(::, k1 until 26) := temp1
+          val k = DenseMatrix.rand[Double](10, 26).map(x => if (x < 0.5) 0.0d else 1.0d)
+          val tmp = individuals(j * 2)(1).copy
+          individuals(j * 2)(1) := (individuals(j * 2)(1) :* k) + (individuals(j * 2 + 1)(1) :* (1.0d - k))
+          individuals(j * 2 + 1)(1) := (individuals(j * 2 + 1)(1) :* k) + (tmp :* (1.0d - k))
         }
       }
 
@@ -127,6 +173,10 @@ object Main {
       for (j <- 0 until NUM_OF_ELITE) {
         individuals(j) = elites(j)
       }
+      for (j <- savedEliteQueue.indices) {
+        individuals(j + NUM_OF_ELITE) = savedEliteQueue(j)
+      }
+
     }
   }
 
