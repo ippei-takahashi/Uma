@@ -78,8 +78,8 @@ object Main {
             if (savedEliteQueue.length > NUM_OF_SAVED_ELITE) {
               savedEliteQueue.dequeue()
             }
-            currentElite = None
           }
+          currentElite = None
 
           for (j <- 0 until BATCH_SIZE) {
             val n = r.nextInt(4000)
@@ -114,23 +114,48 @@ object Main {
 
           costs(j) += costk
         }
-        scores(j) = 1.0d / (costs(j) + 1.0d)
       }
 
       // 優秀な数匹は次の世代に持ち越し
-      val elites = scores.zipWithIndex.sortBy {
-        case ((s, _)) => -s
+      val sorted = costs.zipWithIndex.sortBy {
+        case (c, _) => c
       }.map {
-        case ((_, index)) => individuals(index).clone().map(_.copy)
-      }.slice(0, NUM_OF_ELITE)
+        case (c, index) => individuals(index) -> c
+      }
+      val elites = Array.ofDim[DenseMatrix[Double]](NUM_OF_ELITE, NUM_OF_LAYER - 1)
+      val eliteCosts = Array.ofDim[Double](NUM_OF_ELITE)
+
+      elites(0) = sorted.head._1.clone().map(_.copy)
+      eliteCosts(0) = sorted.head._2
+      var eliteCount = 1
+      var j = 1
+      while (j < NUM_OF_INDIVIDUAL && eliteCount < NUM_OF_ELITE) {
+        if (!sorted(j)._1.sameElements(elites(eliteCount - 1))) {
+          elites(eliteCount) = sorted(j)._1.clone().map(_.copy)
+          eliteCosts(eliteCount) = sorted(j)._2
+          eliteCount += 1
+        }
+        j += 1
+      }
 
       if (costs.min < currentMinCost) {
         currentMinCost = costs.min
-        currentElite = Some(elites.head)
+        currentElite = Some(sorted.head._1.clone().map(_.copy))
       }
 
-      if (i % 50 == 0)
-        println(s"elite$i: cost = ${costs.min}")
+      if (i % 50 == 0) {
+        println(s"LOOP: $i")
+        for (j <- 0 until eliteCount) {
+          println(s"elite$j: cost = ${eliteCosts(j)}")
+        }
+        for (j <- savedEliteQueue.indices) {
+          println(s"savedElite$j: cost = ${costs(eliteCount + j)}")
+        }
+        println(s"min: cost = ${costs.min}")
+        println(s"average: cost = ${costs.sum / costs.length}")
+        println(s"max: cost = ${costs.max}")
+      }
+
 
       val tmpIndividuals = selectionTournament(r, scores, individuals)
       for (j <- 0 until NUM_OF_INDIVIDUAL; k <- 0 until NUM_OF_LAYER - 1) {
@@ -170,11 +195,11 @@ object Main {
       }
 
 
-      for (j <- 0 until NUM_OF_ELITE) {
+      for (j <- 0 until eliteCount) {
         individuals(j) = elites(j)
       }
       for (j <- savedEliteQueue.indices) {
-        individuals(j + NUM_OF_ELITE) = savedEliteQueue(j)
+        individuals(j + eliteCount) = savedEliteQueue(j).clone().map(_.copy)
       }
 
     }
