@@ -19,7 +19,7 @@ object Main {
   val SIZE = if (USE_BATCH) BATCH_SIZE else DATA_SIZE
 
   val CROSSING_RATE = 0.85
-  val MUTATION_RATE = 0.3
+  val MUTATION_RATE = 0.15
   val ALPHA = 0.5
   val LAMBDA = 0.0003
 
