@@ -2,133 +2,90 @@ import java.io._
 import scala.util.Random
 import breeze.linalg._
 import breeze.numerics._
-import breeze.stats.mean
+import breeze.stats._
 
 object Main {
   val NUM_OF_INDIVIDUAL = 100
-  val NUM_OF_GENERATION = 3001
-  val NUM_OF_LABELS = 10
+  val NUM_OF_GENERATION = 100001
   val NUM_OF_ELITE = 4
   val NUM_OF_SAVED_ELITE = 4
-  val NUM_OF_LAYER = 3
+  val NUM_OF_LAYER_MAT = 2
 
-  val USE_BATCH = false
-  val BATCH_SIZE = 500
-  val DATA_SIZE = 4000
-  val VAL_SIZE = 1000
-  val SIZE = if (USE_BATCH) BATCH_SIZE else DATA_SIZE
+  val DATA_RATE = 0.8
 
   val CROSSING_RATE = 0.85
-  val MUTATION_RATE = 0.3
+  val MUTATION_RATE = 0.15
   val ALPHA = 0.5
   val LAMBDA = 0.0003
 
-  val NETWORK_SHAPE = Array(25 -> 401, 10 -> 26)
+  val NETWORK_SHAPE = Array(6 -> 30, 1 -> 7)
 
   def main(args: Array[String]) {
 
     val r = new Random()
 
-    val xcsv = new File("x.csv")
-    val ycsv = new File("y.csv")
+    val dataCSV = new File("data.csv")
 
-    val data = csvread(xcsv)
-    val ymat: DenseMatrix[Int] = csvread(ycsv).map(_.asInstanceOf[Int]) :% 10
+    val data = csvread(dataCSV)
 
-    val x: DenseMatrix[Double] = DenseMatrix.horzcat(DenseMatrix.ones[Double](data.rows, 1), data)
-    val y: DenseVector[Int] = ymat(::, 0)
+    val size = data.rows
+
+    val xx = data(::, 0 until data.cols - 1)
+    val xt = xx.t
+    val xMean: DenseVector[Double] = mean(xt(*, ::))
+    val xStd: DenseVector[Double] = stddev(xt(*, ::))
+
+    val xNorm : DenseMatrix[Double] = xt.copy
+
+    for (i <- 0 until size) {
+      xNorm(::, i) := (xNorm(::, i) :- xMean) :/ xStd
+    }
+
+    val yy: DenseVector[Double] = data(::, data.cols - 1)
+    val yMean: Double = mean(yy)
+    val yStd: Double  = stddev(yy)
+
+    val x = DenseMatrix.horzcat(DenseMatrix.ones[Double](size, 1), xNorm.t)
+    val y: DenseVector[Double] = (yy - yMean) / yStd
 
     val xrand = DenseMatrix.zeros[Double](x.rows, x.cols)
-    val yrand = DenseVector.zeros[Int](y.length)
+    val yrand = DenseVector.zeros[Double](y.length)
 
     val randomArray = Random.shuffle(0 to x.rows - 1).toArray
 
     for (i <- randomArray.indices) {
       xrand(i, ::) := x(randomArray(i), ::)
-      yrand(i) =  y(randomArray(i))
+      yrand(i) = y(randomArray(i))
     }
 
-    val a1 = xrand(0 until 4000, ::)
-    val a1val = xrand(4000 until 5000, ::)
+    val dataSize = (DATA_RATE * x.rows).toInt
+    val valSize = size - dataSize
 
-    val y1 = yrand(0 until 4000)
-    val y1val = yrand(4000 until 5000)
+    val a1 = xrand(0 until dataSize, ::)
+    val a1val = xrand(dataSize until size, ::)
 
-    var a1_ = DenseMatrix.zeros[Double](BATCH_SIZE, 401)
-    var y1_ = DenseVector.zeros[Int](BATCH_SIZE)
+    val y1 = yrand(0 until dataSize)
+    val y1val = yrand(dataSize until size)
 
-    var periodOfBatch = 500
-    var nextChange = 0
-    var currentElite: Option[Array[DenseMatrix[Double]]] = None
-    var currentMinCost = Double.MaxValue
-    var previousMinCost = Double.MaxValue
-    val savedEliteQueue = scala.collection.mutable.Queue[Array[DenseMatrix[Double]]]()
+    val individuals = Array.ofDim[DenseMatrix[Double]](NUM_OF_INDIVIDUAL, NUM_OF_LAYER_MAT)
 
-    val individuals = Array.ofDim[DenseMatrix[Double]](NUM_OF_INDIVIDUAL, NUM_OF_LAYER - 1)
-
-    for (i <- 0 until NUM_OF_INDIVIDUAL) {
-      individuals(i)(0) = DenseMatrix.rand(25, 401) - 0.5
-      individuals(i)(1) = DenseMatrix.rand(10, 26) - 0.5
+    for (i <- 0 until NUM_OF_INDIVIDUAL; j <- 0 until NUM_OF_LAYER_MAT) {
+      individuals(i)(j) = DenseMatrix.rand(NETWORK_SHAPE(j)._1, NETWORK_SHAPE(j)._2) - 0.5
     }
 
     for (i <- 0 until NUM_OF_GENERATION) {
       val costs = Array.ofDim[Double](NUM_OF_INDIVIDUAL)
 
-      val (newa, newy) = {
-        if (USE_BATCH && i >= nextChange) {
-          val a1_ = DenseMatrix.zeros[Double](BATCH_SIZE, 401)
-          val y1_ = DenseVector.zeros[Int](BATCH_SIZE)
-
-          if (currentMinCost > previousMinCost) {
-            periodOfBatch += 50
-          }
-          previousMinCost = currentMinCost
-          currentMinCost = Double.MaxValue
-          nextChange += periodOfBatch
-          println(s"period = $periodOfBatch")
-
-          currentElite.foreach { e =>
-            savedEliteQueue.enqueue(e)
-            if (savedEliteQueue.length > NUM_OF_SAVED_ELITE) {
-              savedEliteQueue.dequeue()
-            }
-          }
-          currentElite = None
-
-          for (j <- 0 until BATCH_SIZE) {
-            val n = r.nextInt(4000)
-            a1_(j, ::) := a1(n, ::)
-            y1_(j) = y1(n)
-          }
-
-          (a1_, y1_)
-        } else if (USE_BATCH) {
-          (a1_, y1_)
-        } else {
-          (a1, y1)
-        }
-      }
-      a1_ = newa
-      y1_ = newy
-
       for (j <- 0 until NUM_OF_INDIVIDUAL) {
-        val z2 = a1_ * individuals(j)(0).t
-        val a2 = DenseMatrix.horzcat(DenseMatrix.ones[Double](SIZE, 1), sigmoid(z2))
-        val z3 = a2 * individuals(j)(1).t
+        val z2: DenseMatrix[Double] = a1 * individuals(j)(0).t
+        val a2: DenseMatrix[Double] = DenseMatrix.horzcat(DenseMatrix.ones[Double](dataSize, 1), z2)
+        val z3: DenseMatrix[Double] = a2 * individuals(j)(1).t
 
-        val hx: DenseMatrix[Double] = sigmoid(z3)
+        val hx: DenseVector[Double] = z3(::, 0)
 
-        for (k <- 0 until NUM_OF_LABELS) {
-          val yk: DenseVector[Double] = (y1_ :== k).map(x => if (x) 1.0d else 0)
-          val hxk = hx(::, k)
+        costs(j) += ((hx - y1).t * (hx - y1)) * yStd / dataSize / 2.0
 
-          val costk1: DenseVector[Double] = yk :* log(hxk.map(x => if (x == 0.0d) Double.MinPositiveValue else x))
-          val costk2: DenseVector[Double] = (1.0d - yk) :* log((1.0d - hxk).map(x => if (x == 0.0d) Double.MinPositiveValue else x))
-          val costk = 1.0d / SIZE * sum(-costk1 - costk2)
-
-          costs(j) += costk
-        }
-        for (k <- 0 until NUM_OF_LAYER / 2) {
+        for (k <- 0 until NUM_OF_LAYER_MAT) {
           costs(j) += LAMBDA / 2 * sum(individuals(j)(k)(::, 1 until NETWORK_SHAPE(k)._2) :^ 2.0)
         }
       }
@@ -140,26 +97,30 @@ object Main {
         println(s"LOOP$i: min = ${costs.min}, average = ${costs.sum / costs.length}, max = ${costs.max}")
       }
       if (i % 500 == 0) {
-        val z2val = a1val * elites.head(0).t
-        val a2val = DenseMatrix.horzcat(DenseMatrix.ones[Double](VAL_SIZE, 1), sigmoid(z2val))
-        val z3val = a2val * elites.head(1).t
+        val z2val: DenseMatrix[Double] = a1val * elites.head(0).t
+        val a2val: DenseMatrix[Double] = DenseMatrix.horzcat(DenseMatrix.ones[Double](valSize, 1), z2val)
+        val z3val: DenseMatrix[Double] = a2val * elites.head(1).t
 
-        val hxval: DenseMatrix[Double] = sigmoid(z3val)
-        val pred = argmax(hxval(*, ::))
-        val eq = pred :== y1val
-        val m: Double = mean(eq.map(x => if (x) 1.0d else 0))
+        val hxval: DenseVector[Double] = z3val(::, 0)
+        val s: DenseVector[Double] = sqrt(((hxval * yStd) - (y1val * yStd)) :^ 2.0)
+        val errorMean = mean(s)
+        val errorStd = stddev(s)
 
-        println(s"Accuracy = ${m * 100}")
+        println(s"ErrorMean = $errorMean, ErrorStd = $errorStd")
+
+        for (j <- 0 until NUM_OF_LAYER_MAT) {
+          csvwrite(new File(s"result_${i}_$j.csv"), elites.head(j))
+        }
       }
 
 
       val tmpIndividuals = selectionTournament(r, costs, individuals)
-      for (j <- 0 until NUM_OF_INDIVIDUAL; k <- 0 until NUM_OF_LAYER - 1) {
+      for (j <- 0 until NUM_OF_INDIVIDUAL; k <- 0 until NUM_OF_LAYER_MAT) {
         individuals(j)(k) = tmpIndividuals(j)(k)
       }
 
       // 交叉
-      for (j <- 0 until NUM_OF_INDIVIDUAL / 2; k <- 0 until NUM_OF_LAYER - 1) {
+      for (j <- 0 until NUM_OF_INDIVIDUAL / 2; k <- 0 until NUM_OF_LAYER_MAT) {
         if (r.nextDouble() < CROSSING_RATE) {
           val minMat = min(individuals(j * 2)(k), individuals(j * 2 + 1)(k)) - ALPHA * abs(individuals(j * 2)(k) - individuals(j * 2 + 1)(k))
           val maxMat = max(individuals(j * 2)(k), individuals(j * 2 + 1)(k)) + ALPHA * abs(individuals(j * 2)(k) - individuals(j * 2 + 1)(k))
@@ -170,12 +131,11 @@ object Main {
       }
 
       // 突然変異
-      for (j <- 0 until NUM_OF_INDIVIDUAL; k <- 0 until NUM_OF_LAYER - 1) {
+      for (j <- 0 until NUM_OF_INDIVIDUAL; k <- 0 until NUM_OF_LAYER_MAT) {
         if (r.nextDouble() < MUTATION_RATE) {
           val x = r.nextInt(NETWORK_SHAPE(k)._1)
           val y = r.nextInt(NETWORK_SHAPE(k)._2)
           individuals(j)(k)(x, y) += r.nextDouble() - 0.5
-
         }
       }
 
@@ -183,10 +143,6 @@ object Main {
       for (j <- 0 until eliteCount) {
         individuals(j) = elites(j)
       }
-      for (j <- savedEliteQueue.indices) {
-        individuals(j + eliteCount) = savedEliteQueue(j).clone().map(_.copy)
-      }
-
     }
   }
 
@@ -196,7 +152,7 @@ object Main {
     }.map {
       case (c, index) => individuals(index) -> c
     }
-    val elites = Array.ofDim[DenseMatrix[Double]](NUM_OF_ELITE, NUM_OF_LAYER - 1)
+    val elites = Array.ofDim[DenseMatrix[Double]](NUM_OF_ELITE, NUM_OF_LAYER_MAT)
     val eliteCosts = Array.ofDim[Double](NUM_OF_ELITE)
 
     elites(0) = sorted.head._1.clone().map(_.copy)
@@ -215,7 +171,7 @@ object Main {
   }
 
   def selectionTournament(r: Random, costs: Array[Double], individuals: Array[Array[DenseMatrix[Double]]]): Array[Array[DenseMatrix[Double]]] = {
-    val tmpIndividuals = Array.ofDim[DenseMatrix[Double]](NUM_OF_INDIVIDUAL, NUM_OF_LAYER - 1)
+    val tmpIndividuals = Array.ofDim[DenseMatrix[Double]](NUM_OF_INDIVIDUAL, NUM_OF_LAYER_MAT)
 
     for (j <- 0 until NUM_OF_INDIVIDUAL) {
       val a = r.nextInt(NUM_OF_INDIVIDUAL)
