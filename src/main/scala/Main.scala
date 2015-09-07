@@ -26,9 +26,15 @@ object Main {
 
     val dataCSV = new File("data.csv")
 
-    val data = csvread(dataCSV)
+    val data: DenseMatrix[Double] = csvread(dataCSV)
 
     val size = data.rows
+
+    val array = Array.ofDim[DenseVector[Double]](data.rows)
+    for (i <- 0 until data.rows) {
+      array(i) = data(i, ::).t
+    }
+    val group = array.groupBy(_(0)).values.toList.map(_.map(_(1 until data.cols)))
 
     val xx = data(::, 0 until data.cols - 1)
     val xt = xx.t
