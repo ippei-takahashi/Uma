@@ -8,8 +8,7 @@ object Main {
   val NUM_OF_INDIVIDUAL = 100
   val NUM_OF_GENERATION = 100001
   val NUM_OF_ELITE = 4
-  val NUM_OF_SAVED_ELITE = 4
-  val NUM_OF_LAYER_MAT = 2
+  val NUM_OF_LAYER_MAT = 3
 
   val DATA_RATE = 0.8
 
@@ -18,7 +17,9 @@ object Main {
   val ALPHA = 0.5
   val LAMBDA = 0.0003
 
-  val NETWORK_SHAPE = Array(6 -> 30, 1 -> 7)
+  val BATCH_SIZE = 1000
+
+  val NETWORK_SHAPE = Array(6 -> 30, 1 -> 7, 6 -> 6)
 
   def main(args: Array[String]) {
 
@@ -27,51 +28,38 @@ object Main {
     val dataCSV = new File("data.csv")
 
     val data: DenseMatrix[Double] = csvread(dataCSV)
-
+    val dataT = data(::, 1 until data.cols).t
+    val dataMean: DenseVector[Double] = mean(dataT(*, ::))
+    val dataStd: DenseVector[Double] = stddev(dataT(*, ::))
+    val dataNorm: DenseMatrix[Double] = dataT.copy
     val size = data.rows
-
-    val array = Array.ofDim[DenseVector[Double]](data.rows)
-    for (i <- 0 until data.rows) {
-      array(i) = data(i, ::).t
-    }
-    val group = array.groupBy(_(0)).values.toList.map(_.map(_(1 until data.cols)))
-
-    val xx = data(::, 0 until data.cols - 1)
-    val xt = xx.t
-    val xMean: DenseVector[Double] = mean(xt(*, ::))
-    val xStd: DenseVector[Double] = stddev(xt(*, ::))
-
-    val xNorm : DenseMatrix[Double] = xt.copy
-
     for (i <- 0 until size) {
-      xNorm(::, i) := (xNorm(::, i) :- xMean) :/ xStd
+      dataNorm(::, i) := (dataNorm(::, i) :- dataMean) :/ dataStd
     }
 
-    val yy: DenseVector[Double] = data(::, data.cols - 1)
-    val yMean: Double = mean(yy)
-    val yStd: Double  = stddev(yy)
+    val newData = DenseMatrix.horzcat(data(::, 0).toDenseMatrix.t, dataNorm.t)
 
-    val x = DenseMatrix.horzcat(DenseMatrix.ones[Double](size, 1), xNorm.t)
-    val y: DenseVector[Double] = (yy - yMean) / yStd
+    val yMean = dataMean(dataT.rows - 1)
+    val yStd = dataStd(dataT.rows - 1)
 
-    val xrand = DenseMatrix.zeros[Double](x.rows, x.cols)
-    val yrand = DenseVector.zeros[Double](y.length)
-
-    val randomArray = Random.shuffle(0 to x.rows - 1).toArray
-
-    for (i <- randomArray.indices) {
-      xrand(i, ::) := x(randomArray(i), ::)
-      yrand(i) = y(randomArray(i))
+    val array = Array.ofDim[DenseVector[Double]](size)
+    for (i <- 0 until size) {
+      array(i) = newData(i, ::).t
     }
 
-    val dataSize = (DATA_RATE * x.rows).toInt
-    val valSize = size - dataSize
+    class Data(val x: DenseVector[Double], val y: Double)
+    val group = Random.shuffle(array.groupBy(_(0)).values.toList.map(_.map { d =>
+      new Data(DenseVector.vertcat(DenseVector.ones[Double](1), d(1 until data.cols - 1)), d(data.cols - 1))
+    })).par
 
-    val a1 = xrand(0 until dataSize, ::)
-    val a1val = xrand(dataSize until size, ::)
+    val groupSize = group.length
+    val trainSize = (DATA_RATE * groupSize).toInt
+    val testSize = groupSize - trainSize
 
-    val y1 = yrand(0 until dataSize)
-    val y1val = yrand(dataSize until size)
+    val trainData = group.slice(0, trainSize)
+    val testData = group.slice(trainSize, groupSize)
+
+    var currentData = Random.shuffle(trainData.toList).slice(0, BATCH_SIZE).par
 
     val individuals = Array.ofDim[DenseMatrix[Double]](NUM_OF_INDIVIDUAL, NUM_OF_LAYER_MAT)
 
@@ -81,42 +69,49 @@ object Main {
 
     for (i <- 0 until NUM_OF_GENERATION) {
       val costs = Array.ofDim[Double](NUM_OF_INDIVIDUAL)
+      if (i % 200 == 0) {
+        currentData = Random.shuffle(trainData.toList).slice(0, BATCH_SIZE).par
+      }
 
       for (j <- 0 until NUM_OF_INDIVIDUAL) {
-        val z2: DenseMatrix[Double] = a1 * individuals(j)(0).t
-        val a2: DenseMatrix[Double] = DenseMatrix.horzcat(DenseMatrix.ones[Double](dataSize, 1), z2)
-        val z3: DenseMatrix[Double] = a2 * individuals(j)(1).t
+        costs(j) = currentData.map { dataArray =>
+          dataArray.foldLeft((DenseVector.zeros[Double](NETWORK_SHAPE(0)._1), 0.0)) { case ((s, _), d) =>
+            val z2 = individuals(j)(0) * d.x + individuals(j)(2) * s
+            val a2 = DenseVector.vertcat(DenseVector.ones[Double](1), z2)
+            val z3 = individuals(j)(1) * a2
 
-        val hx: DenseVector[Double] = z3(::, 0)
+            val hx = z3(0)
+            (sigmoid(z2), Math.pow((hx - d.y) * yStd, 2.0) / 2.0)
+          }._2 / BATCH_SIZE
+        }.sum
 
-        costs(j) += ((hx - y1).t * (hx - y1)) * yStd / dataSize / 2.0
-
-        for (k <- 0 until NUM_OF_LAYER_MAT) {
-          costs(j) += LAMBDA / 2 * sum(individuals(j)(k)(::, 1 until NETWORK_SHAPE(k)._2) :^ 2.0)
-        }
+        //costs(j) += LAMBDA / 2 * sum(individuals(j)(k)(::, 1 until NETWORK_SHAPE(k)._2) :^ 2.0)
       }
 
-      // 優秀な数匹は次の世代に持ち越し
       val (elites, _, eliteCount) = getElites(costs, individuals)
 
-      if (i % 50 == 0) {
+      if (i % 10 == 0) {
         println(s"LOOP$i: min = ${costs.min}, average = ${costs.sum / costs.length}, max = ${costs.max}")
       }
-      if (i % 500 == 0) {
-        val z2val: DenseMatrix[Double] = a1val * elites.head(0).t
-        val a2val: DenseMatrix[Double] = DenseMatrix.horzcat(DenseMatrix.ones[Double](valSize, 1), z2val)
-        val z3val: DenseMatrix[Double] = a2val * elites.head(1).t
+      if (i % 50 == 0) {
+        val errors = testData.map { dataArray =>
+          dataArray.foldLeft((DenseVector.zeros[Double](NETWORK_SHAPE(0)._1), 0.0)) { case ((s, _), d) =>
+            val z2 = elites.head(0) * d.x + elites.head(2) * s
+            val a2 = DenseVector.vertcat(DenseVector.ones[Double](1), z2)
+            val z3 = elites.head(1) * a2
 
-        val hxval: DenseVector[Double] = z3val(::, 0)
-        val s: DenseVector[Double] = sqrt(((hxval * yStd) - (y1val * yStd)) :^ 2.0)
-        val errorMean = mean(s)
-        val errorStd = stddev(s)
+            val hx = z3(0)
+            (sigmoid(z2), Math.abs(hx - d.y) * yStd)
+          }._2
+        }.toArray
 
+        val errorMean = mean(errors)
+        val errorStd = stddev(errors)
         println(s"ErrorMean = $errorMean, ErrorStd = $errorStd")
 
-        for (j <- 0 until NUM_OF_LAYER_MAT) {
-          csvwrite(new File(s"result_${i}_$j.csv"), elites.head(j))
-        }
+        //        for (j <- 0 until NUM_OF_LAYER_MAT) {
+        //          csvwrite(new File(s"result_${i}_$j.csv"), elites.head(j))
+        //        }
       }
 
 
@@ -144,7 +139,6 @@ object Main {
           individuals(j)(k)(x, y) += r.nextDouble() - 0.5
         }
       }
-
 
       for (j <- 0 until eliteCount) {
         individuals(j) = elites(j)
@@ -190,5 +184,6 @@ object Main {
     }
     tmpIndividuals
   }
-
 }
+
+
