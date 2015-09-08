@@ -8,18 +8,21 @@ object Main {
   val NUM_OF_INDIVIDUAL = 100
   val NUM_OF_GENERATION = 100001
   val NUM_OF_ELITE = 4
-  val NUM_OF_LAYER_MAT = 3
 
   val DATA_RATE = 0.8
 
   val CROSSING_RATE = 0.85
   val MUTATION_RATE = 0.15
   val ALPHA = 0.5
-  val LAMBDA = 0.0003
+  val LAMBDA = 0.003
 
-  val BATCH_SIZE = 1000
+  val BATCH_SIZE = 200
 
-  val NETWORK_SHAPE = Array(6 -> 30, 1 -> 7, 6 -> 6)
+  val NETWORK_SHAPE = Array(6 -> 15, 1 -> 7, 6 -> 6, 6 -> 15, 6 -> 6, 6 -> 15, 6 -> 6, 6 -> 15, 6 -> 6)
+  val NUM_OF_LAYER_MAT = NETWORK_SHAPE.length
+
+
+  class Data(val x: DenseVector[Double], val y: Double)
 
   def main(args: Array[String]) {
 
@@ -47,9 +50,8 @@ object Main {
       array(i) = newData(i, ::).t
     }
 
-    class Data(val x: DenseVector[Double], val y: Double)
     val group = Random.shuffle(array.groupBy(_(0)).values.toList.map(_.map { d =>
-      new Data(DenseVector.vertcat(DenseVector.ones[Double](1), d(1 until data.cols - 1)), d(data.cols - 1))
+      new Data(DenseVector.vertcat(DenseVector.ones[Double](1), d(1 until data.cols - 16)), d(data.cols - 1))
     })).par
 
     val groupSize = group.length
@@ -75,17 +77,28 @@ object Main {
 
       for (j <- 0 until NUM_OF_INDIVIDUAL) {
         costs(j) = currentData.map { dataArray =>
-          dataArray.foldLeft((DenseVector.zeros[Double](NETWORK_SHAPE(0)._1), 0.0)) { case ((s, _), d) =>
-            val z2 = individuals(j)(0) * d.x + individuals(j)(2) * s
-            val a2 = DenseVector.vertcat(DenseVector.ones[Double](1), z2)
-            val z3 = individuals(j)(1) * a2
+          dataArray.foldLeft((DenseVector.zeros[Double](NETWORK_SHAPE(0)._1), DenseVector.zeros[Double](NETWORK_SHAPE(0)._1), 0.0)) {
+            case ((zBefore, sBefore, _), d) =>
+              val mu = individuals(j)(0) * d.x + individuals(j)(2) * zBefore
 
-            val hx = z3(0)
-            (sigmoid(z2), Math.pow((hx - d.y) * yStd, 2.0) / 2.0)
-          }._2 / BATCH_SIZE
+              val gFt = sigmoid(individuals(j)(3) * d.x + individuals(j)(4) * zBefore + sBefore)
+              val gIt = sigmoid(individuals(j)(5) * d.x + individuals(j)(6) * zBefore + sBefore)
+
+              val s = gFt :* sBefore + gIt :* sigmoid(mu)
+              val gOt = sigmoid(individuals(j)(7) * d.x + individuals(j)(8) * zBefore + s)
+
+              val z2 = gOt :* sigmoid(s)
+              val a2 = DenseVector.vertcat(DenseVector.ones[Double](1), z2)
+              val z3 = individuals(j)(1) * a2
+
+              val hx = z3(0)
+              (z2, s, Math.pow((hx - d.y) * yStd, 2.0) / 2.0)
+          }._3 / BATCH_SIZE
         }.sum
 
-        //costs(j) += LAMBDA / 2 * sum(individuals(j)(k)(::, 1 until NETWORK_SHAPE(k)._2) :^ 2.0)
+        for (k <- 0 until NUM_OF_LAYER_MAT) {
+          costs(j) += LAMBDA / 2 * sum(individuals(j)(k)(::, 1 until NETWORK_SHAPE(k)._2) :^ 2.0)
+        }
       }
 
       val (elites, _, eliteCount) = getElites(costs, individuals)
@@ -95,14 +108,23 @@ object Main {
       }
       if (i % 50 == 0) {
         val errors = testData.map { dataArray =>
-          dataArray.foldLeft((DenseVector.zeros[Double](NETWORK_SHAPE(0)._1), 0.0)) { case ((s, _), d) =>
-            val z2 = elites.head(0) * d.x + elites.head(2) * s
-            val a2 = DenseVector.vertcat(DenseVector.ones[Double](1), z2)
-            val z3 = elites.head(1) * a2
+          dataArray.foldLeft((DenseVector.zeros[Double](NETWORK_SHAPE(0)._1), DenseVector.zeros[Double](NETWORK_SHAPE(0)._1), 0.0)) {
+            case ((zBefore, sBefore, _), d) =>
+              val mu = elites.head(0) * d.x + elites.head(2) * zBefore
 
-            val hx = z3(0)
-            (sigmoid(z2), Math.abs(hx - d.y) * yStd)
-          }._2
+              val gFt = sigmoid(elites.head(3) * d.x + elites.head(4) * zBefore + sBefore)
+              val gIt = sigmoid(elites.head(5) * d.x + elites.head(6) * zBefore + sBefore)
+
+              val s = gFt :* sBefore + gIt :* sigmoid(mu)
+              val gOt = sigmoid(elites.head(7) * d.x + elites.head(8) * zBefore + s)
+
+              val z2 = gOt :* sigmoid(s)
+              val a2 = DenseVector.vertcat(DenseVector.ones[Double](1), z2)
+              val z3 = elites.head(1) * a2
+
+              val hx = z3(0)
+              (z2, s, Math.abs(hx - d.y) * yStd)
+          }._3
         }.toArray
 
         val errorMean = mean(errors)
@@ -116,9 +138,9 @@ object Main {
 
 
       val tmpIndividuals = selectionTournament(r, costs, individuals)
-      for (j <- 0 until NUM_OF_INDIVIDUAL; k <- 0 until NUM_OF_LAYER_MAT) {
-        individuals(j)(k) = tmpIndividuals(j)(k)
-      }
+      //      for (j <- 0 until NUM_OF_INDIVIDUAL; k <- 0 until NUM_OF_LAYER_MAT) {
+      //        individuals(j)(k) = tmpIndividuals(j)(k)
+      //      }
 
       // 交叉
       for (j <- 0 until NUM_OF_INDIVIDUAL / 2; k <- 0 until NUM_OF_LAYER_MAT) {
