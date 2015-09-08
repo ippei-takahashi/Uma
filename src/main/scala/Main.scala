@@ -15,7 +15,7 @@ object Main {
 
   val BATCH_SIZE = 30
 
-  val NETWORK_SHAPE = Array(6 -> 15, 6 -> 6, 6 -> 15, 6 -> 6, 6 -> 15, 6 -> 6, 6 -> 15, 6 -> 6, 1 -> 7)
+  val NETWORK_SHAPE = Array(1 -> 15, 1 -> 6, 1 -> 6, 1 -> 15, 1 -> 6, 1 -> 6, 6 -> 15, 6 -> 6, 1 -> 15, 1 -> 6, 1 -> 6, 1 -> 7)
   val NUM_OF_MAT = NETWORK_SHAPE.length
 
 
@@ -127,46 +127,62 @@ object Main {
     }
   }
 
-  def updateTheta(zBefore: DenseVector[Double], sBefore: DenseVector[Double],
-                  dataList: List[Data], theta: Array[DenseMatrix[Double]]): DenseVector[Double] = dataList match {
-    case d :: xs =>
-      val win = theta(0).copy
-      val w = theta(1).copy
-      val wFin = theta(2).copy
-      val wF = theta(3).copy
-      val wIin = theta(4).copy
-      val wI = theta(5).copy
-      val wOin = theta(6).copy
-      val wO = theta(7).copy
-      val wout = theta(8).copy
+  def updateTheta(zBefore: DenseVector[Double],
+                  sBefore: DenseVector[Double],
+                  dataList: List[Data],
+                  theta: Array[DenseMatrix[Double]]): (Double, Double, Double, Double) =
+    dataList match {
+      case d :: xs =>
+        val wIi = theta(0).copy
+        val wIh = theta(1).copy
+        val wIc = theta(2).copy
+        val wFi = theta(3).copy
+        val wFh = theta(4).copy
+        val wFc = theta(5).copy
+        val wCi = theta(6).copy
+        val wCh = theta(7).copy
+        val wOi = theta(8).copy
+        val wOh = theta(9).copy
+        val wOc = theta(10).copy
+        val wout = theta(11).copy
 
-      val mu = win * d.x + w * zBefore
+        val aI = wIi * d.x + wIh * zBefore + wIc * sBefore
+        val bI = sigmoid(aI(0))
+        val aF = wFi * d.x + wFh * zBefore + wFc * sBefore
+        val bF = sigmoid(aF(0))
+        val aC = wCi * d.x + wCh * zBefore
+        val bC = sigmoid(aC)
+        val s = bF * sBefore + bI * bC
+        val aO = wOi * d.x + wOh * zBefore + wOc * s
+        val bO = sigmoid(aO(0))
+        val out = bO * s
 
-      val gFt = sigmoid(wFin * d.x + wF * zBefore + sBefore)
-      val gIt = sigmoid(wIin * d.x + wI * zBefore + sBefore)
+        val a = DenseVector.vertcat(DenseVector.ones[Double](1), out)
+        val nu = wout * a
 
-      val s = gFt :* sBefore + gIt :* sigmoid(mu)
-      val muOt = wOin * d.x + wO * zBefore + s
-      val gOt = sigmoid(muOt)
+        val hx = nu(0)
 
-      val z = gOt :* sigmoid(s)
-      val a = DenseVector.vertcat(DenseVector.ones[Double](1), z)
-      val nu = wout * a
+        val (dIh, dFh, dCh, dOh) = updateTheta(out, s, xs, theta)
 
-      val hx = nu(0)
+        val dout = hx - d.y
+        val w11 = (dout * a).toDenseMatrix
+        theta(11) :-= LEARNING_RATE * w11
 
-      val deltaPlus = updateTheta(z, s, xs, theta)
+        val epsCMat = dout * wout(::, 1 until wout.cols) + dIh * wIh + dFh * wFh + dCh * wCh + dOh * wOh
+        val epsC: DenseVector[Double] = epsCMat(0, ::).t
+        val dO = (1.0 - sigmoid(aO(0))) * sigmoid(aO(0)) * sum(s :* epsC)
+        val w8 = dO * d.x
+        val w9 = dO * zBefore
+        val w10 = dO * s
+        theta(8) :-= LEARNING_RATE * w8
+        theta(9) :-= LEARNING_RATE * w9
+        theta(10) :-= LEARNING_RATE * w10
 
-      val dout = hx - d.y
-      val w8 = (dout * a).toDenseMatrix
-      theta(8) :-= LEARNING_RATE * w8
+        val epsS = bO * DenseVector.ones[Double](NETWORK_SHAPE(0)._1)
 
-      val eps: DenseVector[Double] = dout * wout(::, 1 until wout.cols) + deltaPlus.toDenseMatrix * theta(1)
-      val dOt = (1.0 - sigmoid(muOt)) :* sigmoid(muOt) :* sigmoid(s) :* eps.t
-      theta(6) :-= LEARNING_RATE * d.x
+        (0.0, 0.0, 0.0, 0.0)
 
-      d3
-
-    case Nil => DenseVector.zeros[Double](NETWORK_SHAPE(0)._1)
-  }
+      case Nil =>
+        (0.0, 0.0, 0.0, 0.0)
+    }
 }
