@@ -5,7 +5,8 @@ import breeze.numerics._
 import breeze.stats._
 
 object Main {
-  private[this] val NUM_OF_LOOP = 1000001
+  private[this] val NUM_OF_GENE_LOOP = 10001
+  private[this] val NUM_OF_LEANRNING_LOOP = 10001
 
   private[this] val LEARNING_RATE = 0.001
   private[this] val MOMENTUM_RATE = 0.7
@@ -76,76 +77,78 @@ object Main {
     var shuffledTrainData = Random.shuffle(trainData)
     var index = 0
 
-    for (i <- 0 until NUM_OF_LOOP) {
-      if (index + BATCH_SIZE > trainData.length) {
-        index = 0
-        shuffledTrainData = Random.shuffle(trainData)
-      }
-      val currentData = shuffledTrainData.slice(index, index + BATCH_SIZE).par
-      index += BATCH_SIZE
-
-      val grads = currentData.map { dataArray =>
-        val (_, _, _, _, _, _, grad) = calcGrad(
-          DenseVector.zeros[Double](STATE_SIZE),
-          DenseVector.zeros[Double](STATE_SIZE),
-          dataArray,
-          theta
-        )
-        grad
-      }.reduce { (grad1, grad2) =>
-        grad1.zip(grad2).map {
-          case (x, y) => x + y
+    for (loop <- 0 until NUM_OF_GENE_LOOP) {
+      for (i <- 0 until NUM_OF_LEANRNING_LOOP) {
+        if (index + BATCH_SIZE > trainData.length) {
+          index = 0
+          shuffledTrainData = Random.shuffle(trainData)
         }
-      }
+        val currentData = shuffledTrainData.slice(index, index + BATCH_SIZE).par
+        index += BATCH_SIZE
 
-      for (j <- theta.indices) {
-        theta(j) :-= (grads(j) + MOMENTUM_RATE * momentum(j)) :/ BATCH_SIZE.toDouble
-        momentum(j) = grads(j)
-      }
+        val grads = currentData.map { dataArray =>
+          val (_, _, _, _, _, _, grad) = calcGrad(
+            DenseVector.zeros[Double](STATE_SIZE),
+            DenseVector.zeros[Double](STATE_SIZE),
+            dataArray,
+            theta
+          )
+          grad
+        }.reduce { (grad1, grad2) =>
+          grad1.zip(grad2).map {
+            case (x, y) => x + y
+          }
+        }
 
-      //      if (i % 100 == 0) {
-      //        println(s"LOOP$i: cost = ${cost}")
-      //      }
-      if (i % 500 == 0) {
-        val errors = testData.map { dataArray =>
-          dataArray.foldLeft((DenseVector.zeros[Double](STATE_SIZE), DenseVector.zeros[Double](STATE_SIZE), 0.0)) {
-            case ((zPrev, sPrev, _), d) =>
-              val wIi = theta(0)
-              val wIh = theta(1)
-              val wIc = theta(2)
-              val wFi = theta(3)
-              val wFh = theta(4)
-              val wFc = theta(5)
-              val wCi = theta(6)
-              val wCh = theta(7)
-              val wOi = theta(8)
-              val wOh = theta(9)
-              val wOc = theta(10)
-              val wout = theta(11)
+        for (j <- theta.indices) {
+          theta(j) :-= (grads(j) + MOMENTUM_RATE * momentum(j)) :/ BATCH_SIZE.toDouble
+          momentum(j) = grads(j)
+        }
 
-              val aI = wIi * d.x + wIh * zPrev + wIc * sPrev
-              val bI = sigmoid(aI(0))
-              val aF = wFi * d.x + wFh * zPrev + wFc * sPrev
-              val bF = sigmoid(aF(0))
-              val aC = wCi * d.x + wCh * zPrev
-              val bC = sigmoid(aC)
-              val s = bF * sPrev + bI * tanh(aC)
-              val aO = wOi * d.x + wOh * zPrev + wOc * s
-              val bO = sigmoid(aO(0))
-              val out = bO * s
+        //      if (i % 100 == 0) {
+        //        println(s"LOOP$i: cost = ${cost}")
+        //      }
+        if (i % 500 == 0) {
+          val errors = testData.map { dataArray =>
+            dataArray.foldLeft((DenseVector.zeros[Double](STATE_SIZE), DenseVector.zeros[Double](STATE_SIZE), 0.0)) {
+              case ((zPrev, sPrev, _), d) =>
+                val wIi = theta(0)
+                val wIh = theta(1)
+                val wIc = theta(2)
+                val wFi = theta(3)
+                val wFh = theta(4)
+                val wFc = theta(5)
+                val wCi = theta(6)
+                val wCh = theta(7)
+                val wOi = theta(8)
+                val wOh = theta(9)
+                val wOc = theta(10)
+                val wout = theta(11)
 
-              val a = DenseVector.vertcat(DenseVector.ones[Double](1), out)
-              val nu = wout * a
+                val aI = wIi * d.x + wIh * zPrev + wIc * sPrev
+                val bI = sigmoid(aI(0))
+                val aF = wFi * d.x + wFh * zPrev + wFc * sPrev
+                val bF = sigmoid(aF(0))
+                val aC = wCi * d.x + wCh * zPrev
+                val bC = sigmoid(aC)
+                val s = bF * sPrev + bI * tanh(aC)
+                val aO = wOi * d.x + wOh * zPrev + wOc * s
+                val bO = sigmoid(aO(0))
+                val out = bO * s
 
-              val hx = nu(0)
-              val error = Math.abs(d.y - hx) * yStd
-              (out, s, error)
-          }._3
-        }.toArray
+                val a = DenseVector.vertcat(DenseVector.ones[Double](1), out)
+                val nu = wout * a
 
-        val errorMean = mean(errors)
-        val errorStd = stddev(errors)
-        println(s"LOOP$i: ErrorMean = $errorMean, ErrorStd = $errorStd")
+                val hx = nu(0)
+                val error = Math.abs(d.y - hx) * yStd
+                (out, s, error)
+            }._3
+          }.toArray
+
+          val errorMean = mean(errors)
+          val errorStd = stddev(errors)
+          println(s"LOOP$i: ErrorMean = $errorMean, ErrorStd = $errorStd")
+        }
       }
     }
   }
