@@ -93,7 +93,7 @@ object Main {
       for (i <- 0 until NUM_OF_GENE) {
         val theta = thetaArray(i)
         costs(i) = currentData.map { dataArray =>
-          dataArray.foldLeft((DenseVector.zeros[Double](HIDDEN_SIZE + 1), DenseVector.zeros[Double](HIDDEN_SIZE + 1), 0.0)) {
+          dataArray.foldLeft((DenseVector.zeros[Double](HIDDEN_SIZE), DenseVector.zeros[Double](HIDDEN_SIZE), 0.0)) {
             case ((zPrev, sPrev, _), d) =>
               val (out, s, hx) = getHx(zPrev, sPrev, d, theta)
               val cost = Math.pow(d.y - hx, 2.0) * (Math.pow(yStd, 2.0) / BATCH_SIZE)
@@ -138,7 +138,7 @@ object Main {
       if (loop % 50 == 0) {
         val theta = elites.head
         val errors = testData.map { dataArray =>
-          dataArray.foldLeft((DenseVector.zeros[Double](HIDDEN_SIZE + 1), DenseVector.zeros[Double](HIDDEN_SIZE + 1), 0.0)) {
+          dataArray.foldLeft((DenseVector.zeros[Double](HIDDEN_SIZE), DenseVector.zeros[Double](HIDDEN_SIZE), 0.0)) {
             case ((zPrev, sPrev, _), d) =>
               val (out, s, hx) = getHx(zPrev, sPrev, d, theta)
               val error = Math.abs(d.y - hx) * yStd
