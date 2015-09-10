@@ -26,11 +26,8 @@ object Main {
   private[this] val OUTPUT_SIZE = 1
 
   private[this] val NETWORK_SHAPE = Array(
-    1 -> INPUT_SIZE, 1 -> HIDDEN_SIZE, 1 -> HIDDEN_SIZE,
-    1 -> INPUT_SIZE, 1 -> HIDDEN_SIZE, 1 -> HIDDEN_SIZE,
-    HIDDEN_SIZE -> INPUT_SIZE, HIDDEN_SIZE -> HIDDEN_SIZE,
-    1 -> INPUT_SIZE, 1 -> HIDDEN_SIZE, 1 -> HIDDEN_SIZE,
-    OUTPUT_SIZE -> (HIDDEN_SIZE + 1))
+    HIDDEN_SIZE -> INPUT_SIZE, HIDDEN_SIZE -> HIDDEN_SIZE, OUTPUT_SIZE -> (HIDDEN_SIZE + 1)
+  )
   private[this] val NUM_OF_MAT = NETWORK_SHAPE.length
 
   class Data(val x: DenseVector[Double], val y: Double)
@@ -202,71 +199,34 @@ object Main {
   }
 
   def getHx(zPrev: DenseVector[Double],
-            sPrev: DenseVector[Double],
             d: Data,
             theta: Array[DenseMatrix[Double]]) = {
-    val wIi = theta(0)
-    val wIh = theta(1)
-    val wIc = theta(2)
-    val wFi = theta(3)
-    val wFh = theta(4)
-    val wFc = theta(5)
-    val wCi = theta(6)
-    val wCh = theta(7)
-    val wOi = theta(8)
-    val wOh = theta(9)
-    val wOc = theta(10)
-    val wout = theta(11)
+    val wI = theta(0)
+    val wH = theta(1)
+    val wO = theta(2)
 
-    val aI = wIi * d.x + wIh * zPrev + wIc * sPrev
-    val bI = sigmoid(aI(0))
-    val aF = wFi * d.x + wFh * zPrev + wFc * sPrev
-    val bF = sigmoid(aF(0))
-    val aC = wCi * d.x + wCh * zPrev
-    val bC = sigmoid(aC)
-    val s = bF * sPrev + bI * tanh(aC)
-    val aO = wOi * d.x + wOh * zPrev + wOc * s
-    val bO = sigmoid(aO(0))
-    val out = bO * s
+
+    val out = wI * d.x + wH * zPrev
 
     val a = DenseVector.vertcat(DenseVector.ones[Double](1), out)
-    val nu = wout * a
+    val nu = wO * a
 
-    (out, s, nu(0))
+    (out, nu(0))
   }
 
   def calcGrad(zPrev: DenseVector[Double],
-               sPrev: DenseVector[Double],
                dataList: List[Data],
                theta: Array[DenseMatrix[Double]]): (Double, Double, DenseVector[Double], Double, Double, DenseVector[Double], Array[DenseMatrix[Double]]) =
     dataList match {
       case d :: xs =>
-        val wIi = theta(0)
-        val wIh = theta(1)
-        val wIc = theta(2)
-        val wFi = theta(3)
-        val wFh = theta(4)
-        val wFc = theta(5)
-        val wCi = theta(6)
-        val wCh = theta(7)
-        val wOi = theta(8)
-        val wOh = theta(9)
-        val wOc = theta(10)
-        val wout = theta(11)
+        val wI = theta(0)
+        val wH = theta(1)
+        val wO = theta(2)
 
-        val aI = wIi * d.x + wIh * zPrev + wIc * sPrev
-        val bI = sigmoid(aI(0))
-        val aF = wFi * d.x + wFh * zPrev + wFc * sPrev
-        val bF = sigmoid(aF(0))
-        val aC = wCi * d.x + wCh * zPrev
-        val bC = sigmoid(aC)
-        val s = bF * sPrev + bI * tanh(aC)
-        val aO = wOi * d.x + wOh * zPrev + wOc * s
-        val bO = sigmoid(aO(0))
-        val out = bO * s
+        val out = wI * d.x + wH * zPrev
 
         val a = DenseVector.vertcat(DenseVector.ones[Double](1), out)
-        val nu = wout * a
+        val nu = wO * a
 
         val hx = nu(0)
 
