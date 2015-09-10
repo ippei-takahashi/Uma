@@ -106,8 +106,8 @@ object Main {
       // 交叉
       for (j <- 0 until NUM_OF_GENE / 2; k <- 0 until NUM_OF_MAT) {
         if (r.nextDouble() < CROSSING_RATE) {
-          val minMat = min(thetaArray(j * 2)(k), thetaArray(j * 2 + 1)(k)) - ALPHA * abs(thetaArray(j * 2)(k) - thetaArray(j * 2 + 1)(k))
-          val maxMat = max(thetaArray(j * 2)(k), thetaArray(j * 2 + 1)(k)) + ALPHA * abs(thetaArray(j * 2)(k) - thetaArray(j * 2 + 1)(k))
+          val minMat = min(tmpThetaArray(j * 2)(k), tmpThetaArray(j * 2 + 1)(k)) - ALPHA * abs(tmpThetaArray(j * 2)(k) - tmpThetaArray(j * 2 + 1)(k))
+          val maxMat = max(tmpThetaArray(j * 2)(k), tmpThetaArray(j * 2 + 1)(k)) + ALPHA * abs(tmpThetaArray(j * 2)(k) - tmpThetaArray(j * 2 + 1)(k))
 
           tmpThetaArray(j * 2)(k) := minMat + (DenseMatrix.rand[Double](NETWORK_SHAPE(k)._1, NETWORK_SHAPE(k)._2) :* (maxMat - minMat))
           tmpThetaArray(j * 2 + 1)(k) := minMat + (DenseMatrix.rand[Double](NETWORK_SHAPE(k)._1, NETWORK_SHAPE(k)._2) :* (maxMat - minMat))
