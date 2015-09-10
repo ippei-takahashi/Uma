@@ -26,7 +26,7 @@ object Main {
   private[this] val OUTPUT_SIZE = 1
 
   private[this] val NETWORK_SHAPE = Array(
-    HIDDEN_SIZE -> INPUT_SIZE, HIDDEN_SIZE -> HIDDEN_SIZE, OUTPUT_SIZE -> (HIDDEN_SIZE + 1)
+    HIDDEN_SIZE -> INPUT_SIZE, HIDDEN_SIZE -> (HIDDEN_SIZE + 1), OUTPUT_SIZE -> (HIDDEN_SIZE + 1)
   )
   private[this] val NUM_OF_MAT = NETWORK_SHAPE.length
 
@@ -102,9 +102,8 @@ object Main {
           val currentData = shuffledTrainData.slice(index + BATCH_SIZE * geneIndex, index + BATCH_SIZE * (geneIndex + 1))
 
           val grads = currentData.map { dataArray =>
-            val (_, _, _, _, _, _, grad) = calcGrad(
-              DenseVector.zeros[Double](HIDDEN_SIZE),
-              DenseVector.zeros[Double](HIDDEN_SIZE),
+            val (_, grad) = calcGrad(
+              DenseVector.zeros[Double](HIDDEN_SIZE + 1),
               dataArray,
               theta
             )
@@ -132,12 +131,12 @@ object Main {
       for (i <- 0 until NUM_OF_GENE * 2) {
         val theta = thetaArray(i)
         costs(i) = trainDataPar.map { dataArray =>
-          dataArray.foldLeft((DenseVector.zeros[Double](HIDDEN_SIZE), DenseVector.zeros[Double](HIDDEN_SIZE), 0.0)) {
-            case ((zPrev, sPrev, _), d) =>
-              val (out, s, hx) = getHx(zPrev, sPrev, d, theta)
+          dataArray.foldLeft((DenseVector.zeros[Double](HIDDEN_SIZE + 1), 0.0)) {
+            case ((zPrev, _), d) =>
+              val (out, hx) = getHx(zPrev, d, theta)
               val cost = Math.pow(d.y - hx, 2.0) * (Math.pow(yStd, 2.0) / trainSize.toDouble)
-              (out, s, cost)
-          }._3
+              (out, cost)
+          }._2
         }.sum
       }
 
@@ -177,12 +176,12 @@ object Main {
       if (loop % 1 == 0) {
         val theta = elites.head
         val errors = testData.map { dataArray =>
-          dataArray.foldLeft((DenseVector.zeros[Double](HIDDEN_SIZE), DenseVector.zeros[Double](HIDDEN_SIZE), 0.0)) {
-            case ((zPrev, sPrev, _), d) =>
-              val (out, s, hx) = getHx(zPrev, sPrev, d, theta)
+          dataArray.foldLeft((DenseVector.zeros[Double](HIDDEN_SIZE + 1), 0.0)) {
+            case ((zPrev, _), d) =>
+              val (out, hx) = getHx(zPrev, d, theta)
               val error = Math.abs(d.y - hx) * yStd
-              (out, s, error)
-          }._3
+              (out, error)
+          }._2
         }.toArray
 
         val errorMean = mean(errors)
@@ -205,82 +204,52 @@ object Main {
     val wH = theta(1)
     val wO = theta(2)
 
-
-    val out = wI * d.x + wH * zPrev
+    val out = sigmoid(wI * d.x + wH * zPrev)
 
     val a = DenseVector.vertcat(DenseVector.ones[Double](1), out)
     val nu = wO * a
 
-    (out, nu(0))
+    (DenseVector.vertcat(DenseVector(d.y), out), nu(0))
   }
 
   def calcGrad(zPrev: DenseVector[Double],
                dataList: List[Data],
-               theta: Array[DenseMatrix[Double]]): (Double, Double, DenseVector[Double], Double, Double, DenseVector[Double], Array[DenseMatrix[Double]]) =
+               theta: Array[DenseMatrix[Double]]): (DenseVector[Double], Array[DenseMatrix[Double]]) =
     dataList match {
       case d :: xs =>
         val wI = theta(0)
         val wH = theta(1)
         val wO = theta(2)
 
-        val out = wI * d.x + wH * zPrev
+        val out = sigmoid(wI * d.x + wH * zPrev)
 
         val a = DenseVector.vertcat(DenseVector.ones[Double](1), out)
         val nu = wO * a
 
         val hx = nu(0)
 
-        val (dINext, dFNext, dCNext, dONext, bFNext, epsSNext, thetaGrads) = calcGrad(out, s, xs, theta)
+        val (dHNext, thetaGrads) = calcGrad(DenseVector.vertcat(DenseVector(d.y), out), xs, theta)
 
-        val dout = hx - d.y
+        val dO = hx - d.y
+        val w2 = (dO * a).toDenseMatrix
+        thetaGrads(2) :+= LEARNING_RATE * w2
 
-        val w11 = (dout * a).toDenseMatrix
-        thetaGrads(11) :+= LEARNING_RATE * w11
+        val epsH: DenseMatrix[Double] = dO * wO(::, 1 until (HIDDEN_SIZE + 1)) + dHNext.toDenseMatrix * wH(::, 1 until (HIDDEN_SIZE + 1))
+        val dH = ((1.0 - sigmoid(out)) :* sigmoid(out)).toDenseMatrix :* epsH
 
-        val dwC: DenseMatrix[Double] = dCNext.toDenseMatrix * wCh
-        val epsCMat = dout * wout(::, 1 until wout.cols) + dINext * wIh + dFNext * wFh + dwC + dONext * wOh
-        val epsC: DenseVector[Double] = epsCMat(0, ::).t
-        val dO = (1.0 - sigmoid(aO(0))) * sigmoid(aO(0)) * sum(s :* epsC)
+        val w0 = dH.t * d.x.toDenseMatrix
+        val w1 = dH.t * zPrev.toDenseMatrix
+        thetaGrads(0) :+= LEARNING_RATE * w0
+        thetaGrads(1) :+= LEARNING_RATE * w1
 
-        val w8 = dO * d.x
-        val w9 = dO * zPrev
-        val w10 = dO * s
-        thetaGrads(8) :+= LEARNING_RATE * w8.toDenseMatrix
-        thetaGrads(9) :+= LEARNING_RATE * w9.toDenseMatrix
-        thetaGrads(10) :+= LEARNING_RATE * w10.toDenseMatrix
-
-        val epsS = bO * DenseVector.ones[Double](HIDDEN_SIZE) :* epsC + bFNext * epsSNext + dINext * wIc.toDenseVector + dFNext * wFc.toDenseVector + dO * wOc.toDenseVector
-
-        val dC = bI * (1.0 - (tanh(aC) :* tanh(aC))) :* epsS
-        val w6: DenseMatrix[Double] = dC.toDenseMatrix.t * d.x.toDenseMatrix
-        val w7: DenseMatrix[Double] = dC.toDenseMatrix.t * zPrev.toDenseMatrix
-        thetaGrads(6) :+= LEARNING_RATE * w6
-        thetaGrads(7) :+= LEARNING_RATE * w7
-
-        val dI = (1.0 - sigmoid(aI(0))) * sigmoid(aI(0)) * sum(sPrev :* epsS)
-        val w3 = dI * d.x
-        val w4 = dI * zPrev
-        val w5 = dI * sPrev
-        thetaGrads(3) :+= LEARNING_RATE * w3.toDenseMatrix
-        thetaGrads(4) :+= LEARNING_RATE * w4.toDenseMatrix
-        thetaGrads(5) :+= LEARNING_RATE * w5.toDenseMatrix
-
-        val dF = (1.0 - sigmoid(aF(0))) * sigmoid(aF(0)) * sum(tanh(aC) :* epsS)
-        val w0 = dF * d.x
-        val w1 = dF * zPrev
-        val w2 = dF * sPrev
-        thetaGrads(0) :+= LEARNING_RATE * w0.toDenseMatrix
-        thetaGrads(1) :+= LEARNING_RATE * w1.toDenseMatrix
-        thetaGrads(2) :+= LEARNING_RATE * w2.toDenseMatrix
-
-        (dI, dF, dC, dO, bF, epsS, thetaGrads)
+        (dH.toDenseVector, thetaGrads)
 
       case Nil => {
         val array = Array.ofDim[DenseMatrix[Double]](NUM_OF_MAT)
         for (i <- theta.indices) {
           array(i) = DenseMatrix.zeros[Double](NETWORK_SHAPE(i)._1, NETWORK_SHAPE(i)._2)
         }
-        (0.0, 0.0, DenseVector.zeros[Double](HIDDEN_SIZE), 0.0, 0.0, DenseVector.zeros[Double](HIDDEN_SIZE), array)
+        (DenseVector.zeros[Double](HIDDEN_SIZE), array)
       }
     }
 
