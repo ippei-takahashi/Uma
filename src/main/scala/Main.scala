@@ -6,7 +6,7 @@ import breeze.stats._
 
 object Main {
   private[this] val NUM_OF_GENE_LOOP = 10001
-  private[this] val NUM_OF_LEARNING_LOOP = 500
+  private[this] val NUM_OF_LEARNING_LOOP = 100
 
   private[this] val NUM_OF_GENE = 16
   private[this] val NUM_OF_ELITE = 1
@@ -84,21 +84,21 @@ object Main {
       thetas(i) = theta
       momentums(i) = momentum
     }
-    val genes = thetas.zip(momentums).par
+    val genes = thetas.zip(momentums).zipWithIndex.par
 
     var shuffledTrainData = Random.shuffle(trainData)
     var index = 0
 
     for (loop <- 0 until NUM_OF_GENE_LOOP) {
       for (i <- 0 until NUM_OF_LEARNING_LOOP) {
-        if (index + BATCH_SIZE > trainData.length) {
+        if (index + BATCH_SIZE * NUM_OF_GENE > trainData.length) {
           index = 0
           shuffledTrainData = Random.shuffle(trainData)
         }
-        val currentData = shuffledTrainData.slice(index, index + BATCH_SIZE)
-        index += BATCH_SIZE
 
-        genes.foreach { case (theta, momentum) =>
+        genes.foreach { case ((theta, momentum), geneIndex) =>
+          val currentData = shuffledTrainData.slice(index + BATCH_SIZE * geneIndex, index + BATCH_SIZE * (geneIndex + 1))
+
           val grads = currentData.map { dataArray =>
             val (_, _, _, _, _, _, grad) = calcGrad(
               DenseVector.zeros[Double](STATE_SIZE),
@@ -118,9 +118,11 @@ object Main {
             momentum(j) = grads(j)
           }
         }
+
+        index += BATCH_SIZE * NUM_OF_GENE
       }
       val costs = Array.ofDim[Double](NUM_OF_GENE)
-      val thetaArray = genes.map(_._1.clone().map(_.copy)).toArray
+      val thetaArray = genes.map(_._1._1.clone().map(_.copy)).toArray
       val trainDataPar = trainData.par
 
       for (i <- 0 until NUM_OF_GENE) {
@@ -168,7 +170,7 @@ object Main {
       }
 
       for (j <- 0 until NUM_OF_GENE) {
-        genes.update(j, (thetaArray(j), genes(j)._2))
+        genes.update(j, ((thetaArray(j), genes(j)._1._2), genes(j)._2))
       }
 
       if (loop % 10 == 0) {
