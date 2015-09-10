@@ -6,10 +6,10 @@ import breeze.stats._
 
 object Main {
   private[this] val NUM_OF_GENE_LOOP = 10001
-  private[this] val NUM_OF_LEARNING_LOOP = 100
+  private[this] val NUM_OF_LEARNING_LOOP = 1000
 
   private[this] val NUM_OF_GENE = 16
-  private[this] val NUM_OF_ELITE = 1
+  private[this] val NUM_OF_ELITE = 2
 
   private[this] val LEARNING_RATE = 0.001
   private[this] val MOMENTUM_RATE = 0.7
@@ -325,22 +325,11 @@ object Main {
     }.map {
       case (c, index) => thetaArray(index) -> c
     }
-    val elites = Array.ofDim[DenseMatrix[Double]](NUM_OF_ELITE, NUM_OF_MAT)
-    val eliteCosts = Array.ofDim[Double](NUM_OF_ELITE)
 
-    elites(0) = sorted.head._1.clone().map(_.copy)
-    eliteCosts(0) = sorted.head._2
-    var eliteCount = 1
-    var j = 1
-    while (j < NUM_OF_GENE && eliteCount < NUM_OF_ELITE) {
-      if (!sorted(j)._1.sameElements(elites(eliteCount - 1))) {
-        elites(eliteCount) = sorted(j)._1.clone().map(_.copy)
-        eliteCosts(eliteCount) = sorted(j)._2
-        eliteCount += 1
-      }
-      j += 1
-    }
-    (elites, eliteCosts, eliteCount)
+    val elites = sorted.slice(0, NUM_OF_ELITE).map(_._1)
+    val eliteCosts = sorted.slice(0, NUM_OF_ELITE).map(_._2)
+
+    (elites, eliteCosts, NUM_OF_ELITE)
   }
 
   def selectionTournament(r: Random, costs: Array[Double], thetaArray: Array[Array[DenseMatrix[Double]]]): Array[Array[DenseMatrix[Double]]] = {
