@@ -7,12 +7,12 @@ import breeze.stats._
 object Main {
   private[this] val NUM_OF_GENE_LOOP = 1000001
   private[this] val NUM_OF_LEARNING_LOOP = 500
-  private[this] val START_LEARNING = 1000
+  private[this] val START_LEARNING = 10000
 
   private[this] val NUM_OF_GENE = 20
-  private[this] val NUM_OF_ELITE = 4
+  private[this] val NUM_OF_ELITE = 1
 
-  private[this] val LEARNING_RATE = 0.001
+  private[this] val LEARNING_RATE = 0.0001
   private[this] val DATA_RATE = 0.8
 
   private[this] val MOMENTUM_RATE = 0.7
@@ -20,7 +20,7 @@ object Main {
   private[this] val MUTATION_RATE = 0.15
   private[this] val ALPHA = 0.35
 
-  private[this] val FIRST_TRAIN_SIZE = 100
+  private[this] val FIRST_TRAIN_SIZE = 3000
   private[this] val BATCH_SIZE = 30
 
   private[this] val INPUT_SIZE = 15
