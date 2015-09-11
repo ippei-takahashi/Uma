@@ -7,12 +7,12 @@ import breeze.stats._
 object Main {
   private[this] val NUM_OF_GENE_LOOP = 1000001
   private[this] val NUM_OF_LEARNING_LOOP = 500
-  private[this] val START_LEARNING = 10000
+  private[this] val START_LEARNING = 3000
 
   private[this] val NUM_OF_GENE = 20
   private[this] val NUM_OF_ELITE = 1
 
-  private[this] val LEARNING_RATE = 0.0001
+  private[this] val LEARNING_RATE = 0.001
   private[this] val DATA_RATE = 0.8
 
   private[this] val MOMENTUM_RATE = 0.7
@@ -20,8 +20,10 @@ object Main {
   private[this] val MUTATION_RATE = 0.15
   private[this] val ALPHA = 0.35
 
-  private[this] val FIRST_TRAIN_SIZE = 3000
+  private[this] val FIRST_TRAIN_SIZE = 1000
   private[this] val BATCH_SIZE = 30
+
+  private[this] val MAX_LENGTH = 5
 
   private[this] val INPUT_SIZE = 15
   private[this] val HIDDEN_SIZE = 6
@@ -61,7 +63,7 @@ object Main {
 
     val group = Random.shuffle(array.groupBy(_(0)).values.toList.map(_.reverseMap { d =>
       new Data(DenseVector.vertcat(DenseVector.ones[Double](1), d(1 until data.cols - 16)), d(data.cols - 1))
-    }.toList)).par
+    }.slice(0, MAX_LENGTH).toList)).par
 
     val groupSize = group.length
     val trainSize = (DATA_RATE * groupSize).toInt
@@ -99,7 +101,7 @@ object Main {
 
       val notLearnedThetaArray = genes.map(_._1._1.clone().map(_.copy)).toArray
 
-      val thetaArray = if (loop > START_LEARNING) {
+      val thetaArray = if (loop > START_LEARNING && loop % 50 == 0) {
         for (i <- 0 until NUM_OF_LEARNING_LOOP) {
           if (index + BATCH_SIZE * NUM_OF_GENE > trainData.length) {
             index = 0
@@ -192,9 +194,9 @@ object Main {
         genes.update(j, ((tmpThetaArray(j), genes(j)._1._2), genes(j)._2))
       }
 
-      if (loop % 50 == 0 || loop > START_LEARNING) {
+      if (loop % 50 == 0 || loop > START_LEARNING ) {
         val theta = elites.head
-        val errors = testData.map { dataArray =>
+        val errorsOne = testData.filter(_.length == 1).map { dataArray =>
           dataArray.foldLeft((DenseVector.zeros[Double](HIDDEN_SIZE + 1), 0.0)) {
             case ((zPrev, _), d) =>
               val (out, hx) = getHx(zPrev, d, theta)
@@ -202,6 +204,18 @@ object Main {
               (out, error)
           }._2
         }.toArray
+
+        val errors = testData.filter(_.length != 1).map { dataArray =>
+          dataArray.foldLeft((DenseVector.zeros[Double](HIDDEN_SIZE + 1), 0.0)) {
+            case ((zPrev, _), d) =>
+              val (out, hx) = getHx(zPrev, d, theta)
+              val error = Math.abs(d.y - hx) * yStd
+              (out, error)
+          }._2
+        }.toArray
+
+        val errorOneMean = mean(errorsOne)
+        val errorOneStd = stddev(errorsOne)
 
         val errorMean = mean(errors)
         val errorStd = stddev(errors)
@@ -211,7 +225,7 @@ object Main {
         val cost3 = sortedCosts(3)
         val cost4 = sortedCosts(4)
 
-        println(s"LOOP$loop: ErrorMean = $errorMean, ErrorStd = $errorStd, cost1 = $cost1, cost2 = $cost2, cost3 = $cost3, cost4 = $cost4")
+        println(s"LOOP$loop: ErrorMean = $errorMean, ErrorStd = $errorStd, ErrorOneMean = $errorOneMean, ErrorOneStd = $errorOneStd, cost1 = $cost1, cost2 = $cost2, cost3 = $cost3, cost4 = $cost4")
       }
     }
   }
