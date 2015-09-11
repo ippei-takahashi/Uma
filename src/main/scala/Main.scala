@@ -6,22 +6,24 @@ import breeze.stats._
 
 object Main {
   private[this] val NUM_OF_GENE_LOOP = 1000001
-  private[this] val NUM_OF_LEARNING_LOOP = 500
-  private[this] val START_LEARNING = 3000
+  private[this] val NUM_OF_LEARNING_LOOP = 10
 
   private[this] val NUM_OF_GENE = 20
   private[this] val NUM_OF_ELITE = 1
 
-  private[this] val LEARNING_RATE = 0.001
+  private[this] val TRAINING_PERIOD = 1500
+  private[this] val LEARNING_PERIOD = 500
+
   private[this] val DATA_RATE = 0.8
 
+  private[this] val LEARNING_RATE = 0.001
   private[this] val MOMENTUM_RATE = 0.7
+
   private[this] val CROSSING_RATE = 0.85
   private[this] val MUTATION_RATE = 0.15
   private[this] val ALPHA = 0.35
 
-  private[this] val FIRST_TRAIN_SIZE = 1000
-  private[this] val BATCH_SIZE = 30
+  private[this] val TRAIN_SIZE = 1000
 
   private[this] val MAX_LENGTH = 5
 
@@ -89,10 +91,7 @@ object Main {
 
     val genes = thetas.zip(momentums).zipWithIndex.par
 
-    var shuffledTrainData = Random.shuffle(trainData)
-    var index = 0
-
-    val firstTrainData = Random.shuffle(trainData).slice(0, FIRST_TRAIN_SIZE).par
+    var currentData = Random.shuffle(trainData).slice(0, TRAIN_SIZE).par
 
     for (loop <- 0 until NUM_OF_GENE_LOOP) {
       val newGenes = genes.map { case ((theta, momentum), geneIndex) =>
@@ -101,17 +100,12 @@ object Main {
 
       val notLearnedThetaArray = genes.map(_._1._1.clone().map(_.copy)).toArray
 
-      val thetaArray = if (loop > START_LEARNING && loop % 50 == 0) {
+      val thetaArray = if (loop % LEARNING_PERIOD == 0) {
         for (i <- 0 until NUM_OF_LEARNING_LOOP) {
-          if (index + BATCH_SIZE * NUM_OF_GENE > trainData.length) {
-            index = 0
-            shuffledTrainData = Random.shuffle(trainData)
-          }
 
           newGenes.foreach { case ((theta, momentum), geneIndex) =>
-            val currentData = shuffledTrainData.slice(index + BATCH_SIZE * geneIndex, index + BATCH_SIZE * (geneIndex + 1))
 
-            val grads = currentData.map { dataArray =>
+            val grads = trainData.map { dataArray =>
               calcGrad(
                 DenseVector.zeros[Double](HIDDEN_SIZE + 1),
                 dataArray,
@@ -124,12 +118,10 @@ object Main {
             }
 
             for (j <- theta.indices) {
-              theta(j) :-= (grads(j) + MOMENTUM_RATE * momentum(j)) :/ BATCH_SIZE.toDouble
+              theta(j) :-= (grads(j) + MOMENTUM_RATE * momentum(j)) :/ trainSize.toDouble
               momentum(j) = grads(j)
             }
           }
-
-          index += BATCH_SIZE * NUM_OF_GENE
         }
 
         val learnedThetaArray = newGenes.map(_._1._1.clone().map(_.copy)).toArray
@@ -140,10 +132,9 @@ object Main {
 
       val costs = Array.ofDim[Double](thetaArray.length)
 
-      val (currentData, currentSize) = if (loop > START_LEARNING)
-        (trainDataPar, trainSize)
-      else
-        (firstTrainData, FIRST_TRAIN_SIZE)
+      for (i <- 0 until 4) {
+        costs()
+      }
 
       for (i <- thetaArray.indices) {
         val theta = thetaArray(i)
@@ -151,7 +142,7 @@ object Main {
           dataArray.foldLeft((DenseVector.zeros[Double](HIDDEN_SIZE + 1), 0.0)) {
             case ((zPrev, _), d) =>
               val (out, hx) = getHx(zPrev, d, theta)
-              val cost = Math.pow(d.y - hx, 2.0) * (Math.pow(yStd, 2.0) / currentSize)
+              val cost = Math.pow(d.y - hx, 2.0) * (Math.pow(yStd, 2.0) / TRAIN_SIZE)
               (out, cost)
           }._2
         }.sum
@@ -194,7 +185,11 @@ object Main {
         genes.update(j, ((tmpThetaArray(j), genes(j)._1._2), genes(j)._2))
       }
 
-      if (loop % 50 == 0 || loop > START_LEARNING ) {
+      if (loop % TRAINING_PERIOD == 0) {
+        currentData = Random.shuffle(trainData).slice(0, TRAIN_SIZE).par
+      }
+
+      if (loop % 100 == 0) {
         val theta = elites.head
         val errorsOne = testData.filter(_.length == 1).map { dataArray =>
           dataArray.foldLeft((DenseVector.zeros[Double](HIDDEN_SIZE + 1), 0.0)) {
