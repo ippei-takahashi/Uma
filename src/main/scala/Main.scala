@@ -1,4 +1,5 @@
 import java.io._
+import scala.collection.parallel.immutable.ParSeq
 import scala.util.Random
 import breeze.linalg._
 import breeze.numerics._
@@ -6,24 +7,28 @@ import breeze.stats._
 
 object Main {
   private[this] val NUM_OF_GENE_LOOP = 1000001
-  private[this] val NUM_OF_LEARNING_LOOP = 30
+  private[this] val NUM_OF_LEARNING_LOOP = 200
 
-  private[this] val NUM_OF_GENE = 20
-  private[this] val NUM_OF_ELITE = 1
+  private[this] val START_LEARNING = 5000
+  private[this] val FIRST_TRAIN_SIZE = 500
 
-  private[this] val TRAINING_PERIOD = 1500
-  private[this] val LEARNING_PERIOD = 100
+  private[this] val NUM_OF_GENE = 80
+  private[this] val NUM_OF_ELITE = 4
+
+  private[this] val LEARNING_PERIOD = 1
 
   private[this] val DATA_RATE = 0.8
 
+  private[this] val LAMBDA = 0.01
   private[this] val LEARNING_RATE = 0.00001
-  private[this] val MOMENTUM_RATE = 0.7
+  private[this] val MOMENTUM_RATE = 0.9
 
-  private[this] val CROSSING_RATE = 0.85
-  private[this] val MUTATION_RATE = 0.15
-  private[this] val ALPHA = 0.35
+  private[this] val CROSSING_RATE = 0.0
+  private[this] val FIRST_CROSSING_RATE = 0.9
+  private[this] val MUTATION_RATE = 0.05
+  private[this] val FIRST_MUTATION_RATE = 0.15
+  private[this] val ALPHA = 0.5
 
-  private[this] val TRAIN_SIZE = 1000
   private[this] val BATCH_SIZE = 30
 
   private[this] val MAX_LENGTH = 5
@@ -95,18 +100,24 @@ object Main {
     var shuffledTrainData = Random.shuffle(trainData)
     var index = 0
 
-    var currentData = Random.shuffle(trainData).slice(0, TRAIN_SIZE).par
+    val firstTrainData = shuffledTrainData.slice(0, FIRST_TRAIN_SIZE).par
 
     for (loop <- 0 until NUM_OF_GENE_LOOP) {
+      val (numOfGene, numOfElite) = if (loop >= START_LEARNING)
+        (1, 1)
+      else
+        (NUM_OF_GENE, NUM_OF_ELITE)
+
+
       val newGenes = genes.map { case ((theta, momentum), geneIndex) =>
         ((theta.clone().map(_.copy), momentum), geneIndex)
       }
 
       val notLearnedThetaArray = genes.map(_._1._1.clone().map(_.copy)).toArray
 
-      val thetaArray = if (loop % LEARNING_PERIOD == 0) {
+      val thetaArray = if (loop >= START_LEARNING && loop % LEARNING_PERIOD == 0) {
         for (i <- 0 until NUM_OF_LEARNING_LOOP) {
-          if (index + BATCH_SIZE * NUM_OF_GENE > trainData.length) {
+          if (index + BATCH_SIZE * numOfGene > trainData.length) {
             index = 0
             shuffledTrainData = Random.shuffle(trainData)
           }
@@ -127,12 +138,13 @@ object Main {
             }
 
             for (j <- theta.indices) {
-              theta(j) :-= (grads(j) + MOMENTUM_RATE * momentum(j)) :/ BATCH_SIZE.toDouble
-              momentum(j) = grads(j)
+              val w = MOMENTUM_RATE * momentum(j) - LEARNING_RATE * grads(j) :/ BATCH_SIZE.toDouble
+              theta(j) :+= w
+              momentum(j) = w
             }
           }
 
-          index += BATCH_SIZE * NUM_OF_GENE
+          index += BATCH_SIZE * numOfGene
         }
 
         val learnedThetaArray = newGenes.map(_._1._1.clone().map(_.copy)).toArray
@@ -141,37 +153,28 @@ object Main {
         notLearnedThetaArray
       }
 
-      val costs = Array.ofDim[Double](thetaArray.length)
-
-      for (i <- thetaArray.indices) {
-        val theta = thetaArray(i)
-        costs(i) = currentData.map { dataArray =>
-          dataArray.foldLeft((DenseVector.zeros[Double](HIDDEN_SIZE + 1), 0.0)) {
-            case ((zPrev, _), d) =>
-              val (out, hx) = getHx(zPrev, d, theta)
-              val cost = Math.pow(d.y - hx, 2.0) * (Math.pow(yStd, 2.0) / TRAIN_SIZE)
-              (out, cost)
-          }._2
-        }.sum
-      }
-
-      if (loop % LEARNING_PERIOD == 0) {
-        for (i <- 0 until 4) {
-          println(costs(i + NUM_OF_GENE) - costs(i))
-        }
-      }
+      val costs = if (loop < START_LEARNING)
+        calcCost(yStd, firstTrainData, FIRST_TRAIN_SIZE, thetaArray)
+      else
+        calcCost(yStd, trainDataPar, trainSize, thetaArray)
 
       val (newCosts, newThetaArray) = costs.zip(thetaArray).collect {
         case (cost, theta) if !cost.equals(Double.NaN) => (cost, theta)
       }.unzip
 
-      val (elites, sortedCosts) = getElites(newCosts, newThetaArray)
+      val (elites, sortedCosts) = getElites(numOfElite, newCosts, newThetaArray)
 
-      val tmpThetaArray = selectionTournament(r, newCosts, newThetaArray)
+      val tmpThetaArray = selectionTournament(numOfGene, r, newCosts, newThetaArray)
 
       // 交叉
-      for (j <- 0 until NUM_OF_GENE / 2; k <- 0 until NUM_OF_MAT) {
-        if (r.nextDouble() < CROSSING_RATE) {
+      val (crossingRate, mutationRate) =
+        if (loop < START_LEARNING)
+          (FIRST_CROSSING_RATE, FIRST_MUTATION_RATE)
+        else
+          (CROSSING_RATE, MUTATION_RATE)
+
+      for (j <- 0 until numOfGene / 2; k <- 0 until NUM_OF_MAT) {
+        if (r.nextDouble() < crossingRate) {
           val minMat = min(tmpThetaArray(j * 2)(k), tmpThetaArray(j * 2 + 1)(k)) - ALPHA * abs(tmpThetaArray(j * 2)(k) - tmpThetaArray(j * 2 + 1)(k))
           val maxMat = max(tmpThetaArray(j * 2)(k), tmpThetaArray(j * 2 + 1)(k)) + ALPHA * abs(tmpThetaArray(j * 2)(k) - tmpThetaArray(j * 2 + 1)(k))
 
@@ -181,8 +184,8 @@ object Main {
       }
 
       // 突然変異
-      for (j <- 0 until NUM_OF_GENE; k <- 0 until NUM_OF_MAT) {
-        if (r.nextDouble() < MUTATION_RATE) {
+      for (j <- 0 until numOfGene; k <- 0 until NUM_OF_MAT) {
+        if (r.nextDouble() < mutationRate) {
           val x = r.nextInt(NETWORK_SHAPE(k)._1)
           val y = r.nextInt(NETWORK_SHAPE(k)._2)
           tmpThetaArray(j)(k)(x, y) += r.nextDouble() - 0.5
@@ -190,19 +193,25 @@ object Main {
       }
 
 
-      for (j <- 0 until NUM_OF_ELITE) {
+      for (j <- 0 until numOfElite) {
         tmpThetaArray(j) = elites(j)
       }
 
-      for (j <- 0 until NUM_OF_GENE) {
-        genes.update(j, ((tmpThetaArray(j), genes(j)._1._2), genes(j)._2))
+      for (j <- 0 until numOfGene) {
+        val momentum = Array.ofDim[DenseMatrix[Double]](NUM_OF_MAT)
+
+        for (k <- 0 until NUM_OF_MAT) {
+          momentum(k) = DenseMatrix.zeros[Double](NETWORK_SHAPE(k)._1, NETWORK_SHAPE(k)._2)
+        }
+
+        genes.update(j, ((tmpThetaArray(j), momentum), genes(j)._2))
       }
 
-      if (loop % TRAINING_PERIOD == 0) {
-        currentData = Random.shuffle(trainData).slice(0, TRAIN_SIZE).par
+      if (loop >= START_LEARNING && loop % LEARNING_PERIOD == 0) {
+        println(costs(numOfGene) - costs(0))
       }
 
-      if (loop % 100 == 0) {
+      if (loop % 50 == 0 || loop >= START_LEARNING && loop % 5 == 0) {
         val theta = elites.head
         val errorsOne = testData.filter(_.length == 1).map { dataArray =>
           dataArray.foldLeft((DenseVector.zeros[Double](HIDDEN_SIZE + 1), 0.0)) {
@@ -229,9 +238,9 @@ object Main {
         val errorStd = stddev(errors)
 
         val cost1 = sortedCosts.head
-        val cost2 = sortedCosts(2)
-        val cost3 = sortedCosts(3)
-        val cost4 = sortedCosts(4)
+        val cost2 = sortedCosts(0)
+        val cost3 = sortedCosts(0)
+        val cost4 = sortedCosts(0)
 
         println(s"LOOP$loop: ErrorMean = $errorMean, ErrorStd = $errorStd, ErrorOneMean = $errorOneMean, ErrorOneStd = $errorOneStd, cost1 = $cost1, cost2 = $cost2, cost3 = $cost3, cost4 = $cost4")
       }
@@ -245,12 +254,12 @@ object Main {
     val wH = theta(1)
     val wO = theta(2)
 
-    val out = wI * d.x + wH * zPrev
+    val out = sigmoid(wI * d.x + wH * zPrev)
 
     val a = DenseVector.vertcat(DenseVector.ones[Double](1), out)
     val nu = wO * a
 
-    (DenseVector.vertcat(DenseVector(d.y), out), nu(0))
+    (DenseVector.vertcat(sigmoid(DenseVector(d.y)), out), nu(0))
   }
 
   def calcGrad(zPrev: DenseVector[Double],
@@ -262,54 +271,72 @@ object Main {
         val wH = theta(1)
         val wO = theta(2)
 
-        val out = wI * d.x + wH * zPrev
+        val out = sigmoid(wI * d.x + wH * zPrev)
 
         val a = DenseVector.vertcat(DenseVector.ones[Double](1), out)
         val nu = wO * a
 
         val hx = nu(0)
 
-        val (dHNext, thetaGrads) = calcGrad(DenseVector.vertcat(DenseVector(d.y), out), xs, theta)
+        val (dHNext, thetaGrads) = calcGrad(DenseVector.vertcat(sigmoid(DenseVector(d.y)), out), xs, theta)
 
         val dO = hx - d.y
         val w2 = (dO * a).toDenseMatrix
-        thetaGrads(2) :+= LEARNING_RATE * w2
 
-        val dH: DenseMatrix[Double] = dO * wO(::, 1 until (HIDDEN_SIZE + 1)) + dHNext.toDenseMatrix * wH(::, 1 until (HIDDEN_SIZE + 1))
+        val epsH: DenseMatrix[Double] = dO * wO(::, 1 until (HIDDEN_SIZE + 1)) + dHNext.toDenseMatrix * wH(::, 1 until (HIDDEN_SIZE + 1))
+        val dH: DenseMatrix[Double] = ((1.0 - sigmoid(out)) :* sigmoid(out)).toDenseMatrix :* epsH
 
-        val w0 = dH.t * d.x.toDenseMatrix
-        val w1 = dH.t * zPrev.toDenseMatrix
-        thetaGrads(0) :+= LEARNING_RATE * w0
-        thetaGrads(1) :+= LEARNING_RATE * w1
+        val w0: DenseMatrix[Double] = dH.t * d.x.toDenseMatrix
+        val w1: DenseMatrix[Double] = dH.t * zPrev.toDenseMatrix
+
+        thetaGrads(0) :+= w0 :+ LAMBDA * wI
+        thetaGrads(1) :+= w1 :+ LAMBDA * wH
+        thetaGrads(2) :+= w2 + LAMBDA * wO
 
         (dH.toDenseVector, thetaGrads)
 
-      case Nil => {
+      case Nil =>
         val array = Array.ofDim[DenseMatrix[Double]](NUM_OF_MAT)
         for (i <- theta.indices) {
           array(i) = DenseMatrix.zeros[Double](NETWORK_SHAPE(i)._1, NETWORK_SHAPE(i)._2)
         }
         (DenseVector.zeros[Double](HIDDEN_SIZE), array)
-      }
     }
 
-  def getElites(costs: Array[Double], thetaArray: Array[Array[DenseMatrix[Double]]]): (Array[Array[DenseMatrix[Double]]], Array[Double]) = {
+  def calcCost(yStd: Double,
+               trainData: ParSeq[List[Data]],
+               trainSize: Double,
+               thetaArray: Array[Array[DenseMatrix[Double]]]): Array[Double] =
+    thetaArray.map { theta =>
+      trainData.map { dataArray =>
+        dataArray.foldLeft((DenseVector.zeros[Double](HIDDEN_SIZE + 1), 0.0)) {
+          case ((zPrev, _), d) =>
+            val (out, hx) = getHx(zPrev, d, theta)
+            val cost = Math.pow(d.y - hx, 2.0) * Math.pow(yStd, 2.0)
+            val reg = LAMBDA / 2 * theta.map(x => sum(x :^ 2.0)).sum
+            (out, cost + reg)
+        }._2
+      }.sum / trainSize
+    }
+
+
+  def getElites(numOfElite: Int, costs: Array[Double], thetaArray: Array[Array[DenseMatrix[Double]]]): (Array[Array[DenseMatrix[Double]]], Array[Double]) = {
     val sorted = costs.zipWithIndex.sortBy {
       case (c, _) => c
     }.map {
       case (c, index) => thetaArray(index) -> c
     }
 
-    val elites = sorted.slice(0, NUM_OF_ELITE).map(_._1.clone().map(_.copy))
+    val elites = sorted.slice(0, numOfElite).map(_._1.clone().map(_.copy))
     val sortedCosts = sorted.map(_._2)
 
     (elites, sortedCosts)
   }
 
-  def selectionTournament(r: Random, costs: Array[Double], thetaArray: Array[Array[DenseMatrix[Double]]]): Array[Array[DenseMatrix[Double]]] = {
-    val tmpThetaArray = Array.ofDim[DenseMatrix[Double]](NUM_OF_GENE, NUM_OF_MAT)
+  def selectionTournament(numOfGene: Int, r: Random, costs: Array[Double], thetaArray: Array[Array[DenseMatrix[Double]]]): Array[Array[DenseMatrix[Double]]] = {
+    val tmpThetaArray = Array.ofDim[DenseMatrix[Double]](numOfGene, NUM_OF_MAT)
 
-    for (j <- 0 until NUM_OF_GENE) {
+    for (j <- 0 until numOfGene) {
       val a = r.nextInt(thetaArray.length)
       val b = r.nextInt(thetaArray.length)
       if (costs(a) < costs(b)) {
