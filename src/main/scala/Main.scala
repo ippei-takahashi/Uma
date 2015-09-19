@@ -6,7 +6,7 @@ import breeze.numerics._
 import breeze.stats._
 
 object Main {
-  private[this] val NUM_OF_GENE_LOOP = 1000001
+  private[this] val NUM_OF_GENE_LOOP = 1001
 
   private[this] val NUM_OF_GENE = 50
   private[this] val NUM_OF_ELITE = 2
@@ -102,7 +102,7 @@ object Main {
         genes(j) = tmpThetaArray(j)
       }
 
-      if (loop % 1 == 0) {
+      if (loop % 10 == 0) {
         val gene = elites.head
         val errorsOne = testData.filter(_.length == 1).map { dataList =>
           calcDataListCost(dataStd, raceMap, dataList, (x, y) => Math.abs(x - y), gene)
@@ -146,6 +146,10 @@ object Main {
         val cost4 = sortedCosts(20)
 
         println(s"LOOP$loop: ErrorMean = $errorMean, ErrorStd = $errorStd, ErrorOneMean = $errorOneMean, ErrorOneStd = $errorOneStd, cost1 = $cost1, cost2 = $cost2, cost3 = $cost3, cost4 = $cost4")
+
+        if (loop % 100 == 0) {
+          csvwrite(new File(s"result_$loop.csv"), elites.head.toDenseMatrix)
+        }
       }
     }
   }
