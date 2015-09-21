@@ -4,6 +4,10 @@ version := "1.0"
 
 scalaVersion := "2.11.5"
 
+libraryDependencies += "org.scala-lang.modules" %% "scala-xml" % "1.0.2"
+
+libraryDependencies += "nu.validator.htmlparser" % "htmlparser" % "1.4"
+
 libraryDependencies  ++= Seq(
   // other dependencies here
   "org.scalanlp" %% "breeze" % "0.11.2",

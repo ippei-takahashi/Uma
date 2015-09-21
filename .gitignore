@@ -9,3 +9,6 @@ target
 *.iws
 
 .DS_Store
+
+uma/
+race/
