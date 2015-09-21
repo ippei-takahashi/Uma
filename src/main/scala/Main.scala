@@ -24,33 +24,11 @@ object Main {
       raceXMLs.foreach { file =>
         val (name, xml) = file.getName.split("\\.").head -> toNode(file)
         val meta = xml \\@ ("p", "id", "raceTitMeta")
-        if (meta(0).text.split(" ")(1).split("m").isEmpty) return
-        val distance = meta(0).text.split(" ")(1).split("m")(0).toInt * 1000.0
-        val course = meta(0).text.split(" ")(0).split("・")(0) match {
-          case "芝" => 100
-          case "ダート" => 0
-          case _ => Double.NaN
-        }
-        val weather = (meta \\ "img")(0).attribute("alt").get.text match {
-          case "晴" => 30
-          case "曇" => 20
-          case "小雨" => 10
-          case "雨" => 0
-          case _ => Double.NaN
-        }
-        val field = (meta \\ "img")(1).attribute("alt").get.text match {
-          case "良" => 3
-          case "稍重" => 2
-          case "重" => 1
-          case "不良" => 0
-          case _ => Double.NaN
-        }
-        val id = distance + course + weather + field
         val tr = (xml \\@ ("table", "id", "resultLs") \\ "tr").filter(node => (node \ "td").length > 0)
         val td = tr.toList.map(_ \ "td")
         td.foreach { td =>
           val a = td(3) \ "a"
-          if (a.nonEmpty && !id.equals(Double.NaN)) {
+          if (a.nonEmpty && !meta(0).text.startsWith("障害")) {
             val list = List(name, td(0).text.trim, a.head.attribute("href").get.text.split("/")(3), td(13).text.trim)
             pw.println(list.mkString(","))
           }
