@@ -57,7 +57,7 @@ object Main {
 
         val errorStd = stddev(errors)
 
-        println(s"Id$id:Num = ${list.length}, ErrorStd = $errorStd")
+        println(s"$id,$errorStd")
     }
   }
 
