@@ -26,11 +26,14 @@ object Main {
 
     val testData = Random.shuffle(array.groupBy(_(0)).values.toList.map(_.reverseMap { d =>
       new Data(d(1 until data.cols - 1), d(data.cols - 1))
-    }.toList))
+    }.toList.filter {
+      case Data(x, _) =>
+        x(4) == 1.0
+    }).filter(_.nonEmpty))
 
     val raceMap: Map[Double, (Double, Double)] = testData.flatten.groupBy {
       case Data(x, y) =>
-        makeRaceId(x)
+        makeRaceIdSoft(x)
     }.map {
       case (idx, arr) =>
         val times = arr.map(_.y)
@@ -62,7 +65,7 @@ object Main {
   }
 
   def findNearest(raceMap: Map[Double, (Double, Double)], vector: DenseVector[Double]): (Double, Double) = {
-    val raceId = makeRaceId(vector)
+    val raceId = makeRaceIdSoft(vector)
     raceMap.minBy {
       case (idx, value) =>
         Math.abs(raceId - idx)
@@ -70,12 +73,12 @@ object Main {
   }
 
   def prePredict(raceMap: Map[Double, (Double, Double)], stdScore: Double, vector: DenseVector[Double]): Double = {
-    val (m, s) = raceMap.getOrElse(makeRaceId(vector), findNearest(raceMap, vector))
+    val (m, s) = raceMap.getOrElse(makeRaceIdSoft(vector), findNearest(raceMap, vector))
     stdScore * s + m
   }
 
   def calcStdScore(raceMap: Map[Double, (Double, Double)], d: Data): Double = {
-    val (m, s) = raceMap.getOrElse(makeRaceId(d.x), findNearest(raceMap, d.x))
+    val (m, s) = raceMap.getOrElse(makeRaceIdSoft(d.x), findNearest(raceMap, d.x))
     if (s == 0.0) {
       0
     } else {
@@ -122,7 +125,4 @@ object Main {
 
   def makeRaceIdSoft(vector: DenseVector[Double]): Double =
     vector(3) * 1000 + vector(1) * 100
-
-  def makeRaceId(vector: DenseVector[Double]): Double =
-    vector(3) * 1000 + vector(1) * 100 + vector(4) * 30 + vector(5) * 20 + vector(6) * 10 + vector(8) * 3 + vector(9) * 2 + vector(10)
 }
