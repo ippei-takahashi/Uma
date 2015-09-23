@@ -41,12 +41,15 @@ object Main {
     val testData = array.groupBy(_(0)).map {
       case (id, arr) => id -> arr.map { d =>
         new Data(d(1 until data.cols - 2), d(data.cols - 2), d(data.cols - 1))
-      }.toList
+      }.toList.filter {
+        case Data(x, _, _) =>
+          x(4) == 1.0
+      }
     }
 
     val timeMap: Map[Double, (Double, Double)] = testData.values.flatten.groupBy {
       case Data(x, _, _) =>
-        makeRaceId(x)
+        makeRaceIdSoft(x)
     }.map {
       case (idx, arr) =>
         val times = arr.map(_.y)
@@ -78,7 +81,10 @@ object Main {
               vec -> subListBeforeRaceId(raceId, dataList)
           }.filter {
             case (_, list) =>
-              list.length > 5 && stdMap.contains(makeRaceIdSoft(list.head.x))
+              list.count{
+                case Data(x, _, _) =>
+                  stdMap.get(makeRaceIdSoft(x)).isDefined
+              } > 1 && stdMap.contains(makeRaceIdSoft(list.head.x))
           }
 
           if (arr.length == arrWithData.length) {
@@ -95,7 +101,7 @@ object Main {
                   }, coefficient)
               val std = stdMap(makeRaceIdSoft(head.x)) * (1.0 + (cost / (count * 10.0))) / 1.1
               val predictTime = predict(scores, timeMap, head, coefficient)._2
-              val list = List(vec(0), vec(1), vec(2), vec(3), predictTime, std)
+              val list = List(vec(0), vec(2), vec(1), vec(3), tail.length, predictTime, std)
               pw.println(list.mkString(","))
             }
           }
@@ -118,7 +124,7 @@ object Main {
   }
 
   def findNearest(timeMap: Map[Double, (Double, Double)], vector: DenseVector[Double]): (Double, Double) = {
-    val raceId = makeRaceId(vector)
+    val raceId = makeRaceIdSoft(vector)
     timeMap.minBy {
       case (idx, value) =>
         Math.abs(raceId - idx)
@@ -126,12 +132,12 @@ object Main {
   }
 
   def prePredict(timeMap: Map[Double, (Double, Double)], stdScore: Double, vector: DenseVector[Double]): Double = {
-    val (m, s) = timeMap.getOrElse(makeRaceId(vector), findNearest(timeMap, vector))
+    val (m, s) = timeMap.getOrElse(makeRaceIdSoft(vector), findNearest(timeMap, vector))
     stdScore * s + m
   }
 
   def calcStdScore(timeMap: Map[Double, (Double, Double)], d: Data): Double = {
-    val (m, s) = timeMap.getOrElse(makeRaceId(d.x), findNearest(timeMap, d.x))
+    val (m, s) = timeMap.getOrElse(makeRaceIdSoft(d.x), findNearest(timeMap, d.x))
     if (s == 0.0) {
       0
     } else {
@@ -168,7 +174,7 @@ object Main {
 
         val newScores = if (count > 0) scores else prevScores
 
-        (scores, newCount, newCost)
+        (newScores, newCount, newCost)
     }
   }
 
@@ -185,7 +191,4 @@ object Main {
 
   def makeRaceIdSoft(vector: DenseVector[Double]): Double =
     vector(3) * 1000 + vector(1) * 100
-
-  def makeRaceId(vector: DenseVector[Double]): Double =
-    vector(3) * 1000 + vector(1) * 100 + vector(4) * 30 + vector(5) * 20 + vector(6) * 10 + vector(8) * 3 + vector(9) * 2 + vector(10)
 }
