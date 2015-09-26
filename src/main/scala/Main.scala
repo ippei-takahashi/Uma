@@ -11,52 +11,8 @@ object Main {
   case class Data(x: DenseVector[Double], y: Double, z: Double)
 
   def main(args: Array[String]) {
-    val r = new Random()
 
-    val dataCSV = new File("data.csv")
-    val coefficientCSV = new File("coefficient.csv")
-    val raceCSV = new File("race.csv")
-    val stdCSV = new File("std.csv")
-
-    val data: DenseMatrix[Double] = csvread(dataCSV)
-    val size = data.rows
-
-    val array = Array.ofDim[DenseVector[Double]](size)
-    for (i <- 0 until size) {
-      array(i) = data(i, ::).t
-    }
-
-    val stdData: DenseMatrix[Double] = csvread(stdCSV)
-    val stdSize = stdData.rows
-
-    val stdArray = Array.ofDim[DenseVector[Double]](stdSize)
-    for (i <- 0 until stdSize) {
-      stdArray(i) = stdData(i, ::).t
-    }
-    val stdMap = stdArray.groupBy(_(0)).map {
-      case (id, arr) =>
-        id -> arr.head(1)
-    }
-
-    val testData = array.groupBy(_(0)).map {
-      case (id, arr) => id -> arr.map { d =>
-        new Data(d(1 until data.cols - 2), d(data.cols - 2), d(data.cols - 1))
-      }.toList.filter {
-        case Data(x, _, _) =>
-          x(4) == 1.0
-      }
-    }
-
-    val timeMap: Map[Double, (Double, Double)] = testData.values.flatten.groupBy {
-      case Data(x, _, _) =>
-        makeRaceIdSoft(x)
-    }.map {
-      case (idx, arr) =>
-        val times = arr.map(_.y)
-        idx ->(mean(times), stddev(times))
-    }
-
-    val coefficient: Gene = csvread(coefficientCSV)(0, ::).t
+    val raceCSV = new File("raceWithStd.csv")
 
     val raceData: DenseMatrix[Double] = csvread(raceCSV)
     val raceSize = raceData.rows
@@ -68,50 +24,53 @@ object Main {
 
     val raceMap = raceArray.groupBy(_(0))
 
-    val outFile = new File("raceWithStd.csv")
-    val pw = new PrintWriter(outFile)
+    var raceCount = 0
+    var winCount = 0
+    var mulWinCount = 0
+    var over60Count = 0
+    var over60WinCount = 0
+    var over60MulWinCount = 0
+    var over60LoseCount = 0
 
-    try {
-      raceMap.foreach {
-        case (raceId, arr) =>
-          val arrWithData = arr.map { vec =>
-            vec -> testData.get(vec(2))
-          }.collect {
-            case (vec, Some(dataList)) =>
-              vec -> subListBeforeRaceId(raceId, dataList)
-          }.filter {
-            case (_, list) =>
-              list.count{
-                case Data(x, _, _) =>
-                  stdMap.get(makeRaceIdSoft(x)).isDefined
-              } > 1 && stdMap.contains(makeRaceIdSoft(list.head.x))
-          }
+    raceMap.foreach {
+      case (raceId, arr) =>
+        val sorted = arr.sortBy(_(3))
+        val sliced = sorted.slice(0, 3)
 
-          if (arr.length == arrWithData.length) {
-            arrWithData.foreach {
-              case (vec, dataList) =>
-                val head :: tail = dataList
-                val (scores, count, cost) =
-                  calcDataListCost(timeMap, tail.reverse, (x, y, z) => {
-                    val std = stdMap.get(makeRaceIdSoft(x))
-                    if (std.isEmpty)
-                      (0, 0.0)
-                    else
-                      (1, Math.abs(y - z) / std.get)
-                  }, coefficient)
-              val std = stdMap(makeRaceIdSoft(head.x)) * (1.0 + (cost / (count * 10.0))) / 1.1
-              val predictTime = predict(scores, timeMap, head, coefficient)._2
-              val list = List(vec(0), vec(2), vec(1), vec(3), tail.length, predictTime, std)
-              pw.println(list.mkString(","))
-            }
+        val m: Double = mean(sorted.map(_(5)))
+        val s: Double = stddev(sorted.map(_(5)))
+
+        val head = sliced.head
+        val second = sliced(1)
+
+        val stdScore = (m - head(5)) * 10 / s + 50
+        val secondStdScore = (m - second(5)) * 10 / s + 50
+
+        raceCount += 1
+        if (head(2) == 1.0) {
+          winCount += 1
+        } else if (arr.length > 7 && head(2) <= 3.0 || head(2) <= 2.0) {
+          mulWinCount += 1
+        }
+        if (secondStdScore > 60 && stdScore < 50) {
+          over60Count += 1
+          if (head(2) == 1.0) {
+            over60WinCount += 1
+          } else if (arr.length > 7 && head(2) <= 3.0 || head(2) <= 2.0) {
+            over60MulWinCount += 1
+          } else {
+            over60LoseCount += 1
           }
-      }
-    } catch {
-      case ex: Exception =>
-        ex.printStackTrace()
-    } finally {
-      pw.close()
+        }
+
+//        sliced.foreach {
+//          x =>
+//            printf("%02.1f, %03.1f, %f\n", x(2), x(3), (m - x(5)) * 10 / s + 50)
+//        }
+//        println
     }
+
+    println(raceCount, winCount, mulWinCount, over60Count, over60WinCount, over60MulWinCount, over60LoseCount)
   }
 
   def subListBeforeRaceId(raceId: Double, list: List[Data]): List[Data] = list match {
