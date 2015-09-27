@@ -24,6 +24,7 @@ object Main {
 
     val raceMap = raceArray.groupBy(_(0))
 
+    var oddsCount = 0.0
     var raceCount = 0
     var winCount = 0
     var mulWinCount = 0
@@ -34,17 +35,17 @@ object Main {
 
     raceMap.foreach {
       case (raceId, arr) =>
-        val sorted = arr.sortBy(_(3))
-        val sliced = sorted.slice(0, 3)
+        val sorted = arr.sortBy(_(5))
 
         val m: Double = mean(sorted.map(_(5)))
         val s: Double = stddev(sorted.map(_(5)))
 
-        val head = sliced.head
-        val second = sliced(1)
+        val sliced = sorted.slice(0, if (arr.length <= 12) 4 else 5).sortBy(_(3))
+        val head = sliced(1)
+        val top = arr.sortBy(_(3)).head
 
         val stdScore = (m - head(5)) * 10 / s + 50
-        val secondStdScore = (m - second(5)) * 10 / s + 50
+        val topStdScore = (m - top(5)) * 10 / s + 50
 
         raceCount += 1
         if (head(2) == 1.0) {
@@ -52,9 +53,10 @@ object Main {
         } else if (arr.length > 7 && head(2) <= 3.0 || head(2) <= 2.0) {
           mulWinCount += 1
         }
-        if (secondStdScore > 60 && stdScore < 50) {
+        if (stdScore > 65 && topStdScore < 60) {
           over60Count += 1
           if (head(2) == 1.0) {
+            oddsCount += head(3)
             over60WinCount += 1
           } else if (arr.length > 7 && head(2) <= 3.0 || head(2) <= 2.0) {
             over60MulWinCount += 1
@@ -63,14 +65,14 @@ object Main {
           }
         }
 
-//        sliced.foreach {
-//          x =>
-//            printf("%02.1f, %03.1f, %f\n", x(2), x(3), (m - x(5)) * 10 / s + 50)
-//        }
-//        println
+      //        sliced.foreach {
+      //          x =>
+      //            printf("%02.1f, %03.1f, %f\n", x(2), x(3), (m - x(5)) * 10 / s + 50)
+      //        }
+      //        println
     }
 
-    println(raceCount, winCount, mulWinCount, over60Count, over60WinCount, over60MulWinCount, over60LoseCount)
+    println(raceCount, winCount, mulWinCount, oddsCount / over60WinCount, over60Count, over60WinCount, over60MulWinCount, over60LoseCount)
   }
 
   def subListBeforeRaceId(raceId: Double, list: List[Data]): List[Data] = list match {
