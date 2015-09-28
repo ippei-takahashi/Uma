@@ -39,11 +39,11 @@ object Main {
         val s: Double = stddev(stdSorted.map(_(5)))
 
         val stdAndOdds = stdSorted.slice(0, if (arr.length <= 12) 4 else 5).sortBy(_(3))
-        val stdAndOddsHead = stdAndOdds(1)
 
         val stdHead = stdSorted.head
         val oddsHead = oddsSorted.head
         val oddsSecond = oddsSorted(1)
+        val stdAndOddsHead = stdAndOdds(1)
 
         val stdScore = (m - stdHead(5)) * 10 / s + 50
         val oddsScore = (m - oddsHead(5)) * 10 / s + 50
@@ -51,10 +51,10 @@ object Main {
         val stdAndOddsScore = (m - stdAndOddsHead(5)) * 10 / s + 50
 
         raceCount += 1
-        if (stdScore > 65 && oddsScore < 55 &&  oddsSecondScore > 60 && oddsHead != stdHead) {
+        if (stdAndOddsScore > 65 && oddsScore < 60 && oddsHead != stdHead) {
           over60Count += 1
-          if (stdHead(2) + oddsSecond(2) == 3.0) {
-            oddsCount += stdHead(3) * oddsHead(3)
+          if (stdAndOddsHead(2) == 1) {
+            oddsCount += stdAndOddsHead(3)
             over60WinCount += 1
           } else {
             over60LoseCount += 1
