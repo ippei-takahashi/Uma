@@ -26,53 +26,43 @@ object Main {
 
     var oddsCount = 0.0
     var raceCount = 0
-    var winCount = 0
-    var mulWinCount = 0
     var over60Count = 0
     var over60WinCount = 0
-    var over60MulWinCount = 0
     var over60LoseCount = 0
 
     raceMap.foreach {
       case (raceId, arr) =>
-        val sorted = arr.sortBy(_(5))
+        val stdSorted = arr.sortBy(_(5))
+        val oddsSorted = arr.sortBy(_(3))
 
-        val m: Double = mean(sorted.map(_(5)))
-        val s: Double = stddev(sorted.map(_(5)))
+        val m: Double = mean(stdSorted.map(_(5)))
+        val s: Double = stddev(stdSorted.map(_(5)))
 
-        val sliced = sorted.slice(0, if (arr.length <= 12) 4 else 5).sortBy(_(3))
-        val head = sliced(1)
-        val top = arr.sortBy(_(3)).head
+        val stdAndOdds = stdSorted.slice(0, if (arr.length <= 12) 4 else 5).sortBy(_(3))
+        val stdAndOddsHead = stdAndOdds(1)
 
-        val stdScore = (m - head(5)) * 10 / s + 50
-        val topStdScore = (m - top(5)) * 10 / s + 50
+        val stdHead = stdSorted.head
+        val oddsHead = oddsSorted.head
+        val oddsSecond = oddsSorted(1)
+
+        val stdScore = (m - stdHead(5)) * 10 / s + 50
+        val oddsScore = (m - oddsHead(5)) * 10 / s + 50
+        val oddsSecondScore = (m - oddsHead(5)) * 10 / s + 50
+        val stdAndOddsScore = (m - stdAndOddsHead(5)) * 10 / s + 50
 
         raceCount += 1
-        if (head(2) == 1.0) {
-          winCount += 1
-        } else if (arr.length > 7 && head(2) <= 3.0 || head(2) <= 2.0) {
-          mulWinCount += 1
-        }
-        if (stdScore > 65 && topStdScore < 60) {
+        if (stdScore > 65 && oddsScore < 55 &&  oddsSecondScore > 60 && oddsHead != stdHead) {
           over60Count += 1
-          if (head(2) == 1.0) {
-            oddsCount += head(3)
+          if (stdHead(2) + oddsSecond(2) == 3.0) {
+            oddsCount += stdHead(3) * oddsHead(3)
             over60WinCount += 1
-          } else if (arr.length > 7 && head(2) <= 3.0 || head(2) <= 2.0) {
-            over60MulWinCount += 1
           } else {
             over60LoseCount += 1
           }
         }
-
-      //        sliced.foreach {
-      //          x =>
-      //            printf("%02.1f, %03.1f, %f\n", x(2), x(3), (m - x(5)) * 10 / s + 50)
-      //        }
-      //        println
     }
 
-    println(raceCount, winCount, mulWinCount, oddsCount / over60WinCount, over60Count, over60WinCount, over60MulWinCount, over60LoseCount)
+    println(raceCount, oddsCount / over60WinCount, over60Count, over60WinCount, over60LoseCount)
   }
 
   def subListBeforeRaceId(raceId: Double, list: List[Data]): List[Data] = list match {
