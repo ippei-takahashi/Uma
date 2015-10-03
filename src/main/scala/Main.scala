@@ -51,7 +51,7 @@ object Main {
         val stdAndOddsScore = (m - stdAndOddsHead(5)) * 10 / s + 50
 
         raceCount += 1
-        if (stdAndOddsScore > 65 && oddsScore < 60 && oddsHead != stdHead) {
+        if (stdAndOddsScore > 65 && oddsScore < 60) {
           over60Count += 1
           if (stdAndOddsHead(2) == 1) {
             oddsCount += stdAndOddsHead(3)
