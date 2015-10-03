@@ -32,11 +32,11 @@ object Main {
 
     raceMap.foreach {
       case (raceId, arr) =>
-        val stdSorted = arr.sortBy(_(5))
+        val stdSorted = arr.sortBy(_(8))
         val oddsSorted = arr.sortBy(_(3))
 
-        val m: Double = mean(stdSorted.map(_(5)))
-        val s: Double = stddev(stdSorted.map(_(5)))
+        val m: Double = mean(stdSorted.map(_(8)))
+        val s: Double = stddev(stdSorted.map(_(8)))
 
         val stdAndOdds = stdSorted.slice(0, if (arr.length <= 12) 4 else 5).sortBy(_(3))
         val stdAndOddsHead = stdAndOdds(1)
@@ -45,16 +45,16 @@ object Main {
         val oddsHead = oddsSorted.head
         val oddsSecond = oddsSorted(1)
 
-        val stdScore = (m - stdHead(5)) * 10 / s + 50
-        val oddsScore = (m - oddsHead(5)) * 10 / s + 50
-        val oddsSecondScore = (m - oddsHead(5)) * 10 / s + 50
-        val stdAndOddsScore = (m - stdAndOddsHead(5)) * 10 / s + 50
+        val stdScore = (m - stdHead(8)) * 10 / s + 50
+        val oddsScore = (m - oddsHead(8)) * 10 / s + 50
+        val oddsSecondScore = (m - oddsHead(8)) * 10 / s + 50
+        val stdAndOddsScore = (m - stdAndOddsHead(8)) * 10 / s + 50
 
         raceCount += 1
-        if (stdScore > 65 && oddsScore < 60 && stdHead(3) > 5 && oddsHead != stdHead) {
+        if (stdAndOddsScore > 65 && oddsScore < 60 && stdAndOddsHead(3) > 5.0 && stdAndOddsHead(3) < 10.0 && oddsHead != stdHead) {
           over60Count += 1
-          if (stdHead(2)  == 1.0) {
-            oddsCount += stdHead(3)
+          if ((arr.length > 7 && stdAndOddsHead(2) <= 3.0) || stdAndOddsHead(2) <= 2.0) {
+            oddsCount += stdAndOddsHead(5)
             over60WinCount += 1
           } else {
             over60LoseCount += 1
