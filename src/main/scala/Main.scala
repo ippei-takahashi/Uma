@@ -26,11 +26,39 @@ object Main {
         val meta = xml \\@ ("p", "id", "raceTitMeta")
         val tr = (xml \\@ ("table", "id", "resultLs") \\ "tr").filter(node => (node \ "td").length > 0)
         val td = tr.toList.map(_ \ "td")
-        td.foreach { td =>
-          val a = td(3) \ "a"
-          if (a.nonEmpty && !meta(0).text.startsWith("障害")) {
-            val list = List(name, td(0).text.trim, a.head.attribute("href").get.text.split("/")(3), td(13).text.trim)
-            pw.println(list.mkString(","))
+        val resultYen =  (xml \\@ ("table", "class", "resultYen") \\ "tr").filter(node => (node \ "td").length > 0)
+        val yenTh = resultYen.toList.map(_ \ "th")
+        val yenTd = resultYen.toList.map(_ \ "td")
+        val yenT = yenTh.zip(yenTd)
+        for {
+          tan <- yenT.find(x => x._1.length > 0 && x._1(0).text == "単勝")
+          fukWithIndex <- yenT.zipWithIndex.find(x => x._1._1.length > 0 && x._1._1(0).text == "複勝")
+          fuk1 = fukWithIndex._1
+          fuk2 = yenT(fukWithIndex._2 + 1)
+          fuk3 = yenT(fukWithIndex._2 + 2)
+          ren <- yenT.find(x => x._1.length > 0 && x._1(0).text == "馬連")
+          reg = "\\d+".r
+          tanYen <- reg.findFirstIn(tan._2(1).text.replaceAll(",", "").replaceAll("円", "")).map(_.toDouble / 100.0)
+          fuk1Yen <- reg.findFirstIn(fuk1._2(1).text.replaceAll(",", "").replaceAll("円", "")).map(_.toDouble / 100.0)
+          fuk2Yen <- reg.findFirstIn(fuk2._2(1).text.replaceAll(",", "").replaceAll("円", "")).map(_.toDouble / 100.0)
+          fuk3Yen <- reg.findFirstIn(fuk3._2(1).text.replaceAll(",", "").replaceAll("円", "")).map(_.toDouble / 100.0)
+          renYen <- reg.findFirstIn(ren._2(1).text.replaceAll(",", "").replaceAll("円", "")).map(_.toDouble / 100.0)
+        } {
+          td.foreach { td =>
+            val a = td(3) \ "a"
+            val rank = td(0).text.trim
+            val num = td(2).text.trim
+            val fukYen = num match {
+              case n if n == fuk1._2(0).text => fuk1Yen
+              case n if n == fuk2._2(0).text => fuk2Yen
+              case n if n == fuk3._2(0).text => fuk3Yen
+              case _ => 0.0
+            }
+            if (a.nonEmpty && !meta(0).text.startsWith("障害") && reg.findFirstIn(rank).nonEmpty) {
+              val list = List(name, td(0).text.trim, a.head.attribute("href").get.text.split("/")(3), td(13).text.trim,
+                tanYen, fukYen, renYen)
+              pw.println(list.mkString(","))
+            }
           }
         }
       }
