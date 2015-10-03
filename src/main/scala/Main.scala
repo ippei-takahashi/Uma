@@ -84,7 +84,7 @@ object Main {
               list.count{
                 case Data(x, _, _) =>
                   stdMap.get(makeRaceIdSoft(x)).isDefined
-              } > 1 && stdMap.contains(makeRaceIdSoft(list.head.x))
+              } > 0 && stdMap.contains(makeRaceIdSoft(list.head.x))
           }
 
           if (arr.length == arrWithData.length) {
@@ -101,7 +101,7 @@ object Main {
                   }, coefficient)
               val std = stdMap(makeRaceIdSoft(head.x)) * (1.0 + (cost / (count * 10.0))) / 1.1
               val predictTime = predict(scores, timeMap, head, coefficient)._2
-              val list = List(vec(0), vec(2), vec(1), vec(3), vec(4), vec(5), vec(6), tail.length, predictTime, std)
+              val list = List(vec(0), vec(2), vec(1), vec(3), vec(4), vec(5), vec(6), tail.length, predictTime)
               pw.println(list.mkString(","))
             }
           }
