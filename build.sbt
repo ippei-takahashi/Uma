@@ -21,6 +21,8 @@ libraryDependencies  ++= Seq(
   "org.scalanlp" %% "breeze-viz" % "0.11.2"
 )
 
+libraryDependencies += "net.databinder.dispatch" %% "dispatch-core" % "0.11.2"
+
 resolvers ++= Seq(
   // other resolvers here
   // if you want to use snapshot builds (currently 0.12-SNAPSHOT), use this.
