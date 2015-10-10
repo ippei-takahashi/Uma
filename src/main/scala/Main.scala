@@ -43,24 +43,39 @@ object Main {
     val coefficient: Gene = csvread(coefficientCSV)(0, ::).t
 
 
-    testData.groupBy { list =>
-      val Data(x, _) = list.last
-      makeRaceIdSoft(x)
-    }.toList.collect {
-      case (id, list) if list.count(_.length > 3) > 50 =>
-        id -> list.filter(_.length > 3)
-    }.sortBy {
-      case (id, _) =>
-        id
-    }.foreach {
-      case (id, list) =>
-        val errors = list.map { dataList =>
-          calcDataListCost(raceMap, dataList, (x, y) => Math.abs(x - y), coefficient)
-        }.toArray
+    val outFile = new File("std.csv")
+    val pw = new PrintWriter(outFile)
 
-        val errorStd = stddev(errors)
+    try {
+      testData.groupBy { list =>
+        val Data(x, _) = list.last
+        makeRaceIdSoft(x)
+      }.toList.collect {
+        case (id, list) if list.count(_.length > 3) > 30 =>
+          id -> list.filter(_.length > 3)
+      }.sortBy {
+        case (id, _) =>
+          id
+      }.foreach {
+        case (id, list) =>
+          val errors = list.map { dataList =>
+            calcDataListCost(raceMap, dataList, (x, y) => Math.abs(x - y), coefficient)
+          }.toArray
 
-        println(s"$id,$errorStd")
+          val times = list.map { dataList =>
+            dataList.head.y
+          }.toArray
+
+          val timeMean = mean(times)
+          val errorStd = stddev(errors)
+
+          pw.println(s"$id,$errorStd,$timeMean")
+      }
+    } catch {
+      case ex: Exception =>
+        ex.printStackTrace()
+    } finally {
+      pw.close()
     }
   }
 
