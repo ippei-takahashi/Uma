@@ -15,9 +15,12 @@ object Main {
   def main(args: Array[String]) {
     val r = new Random()
 
-    val dataCSV = new File("data.csv")
+    val dataCSV = new File("20151011.csv")
     val coefficientCSV = new File("coefficient.csv")
     val stdCSV = new File("std.csv")
+
+    val a = new BufferedReader(new FileReader(dataCSV))
+    var b = a.readLine()
 
     val data: DenseMatrix[Double] = csvread(dataCSV)
     val size = data.rows
@@ -34,15 +37,15 @@ object Main {
     for (i <- 0 until stdSize) {
       stdArray(i) = stdData(i, ::).t
     }
-    val stdMap = stdArray.groupBy(_ (0)).map {
+    val stdMap = stdArray.groupBy(_(0)).map {
       case (id, arr) =>
-        id -> arr.head(1)
+        id ->(arr.head(2), arr.head(1))
     }
 
-    val raceMap = array.groupBy(_ (0)).map {
-      case (raceId, arr) => raceId -> arr.groupBy(_ (1)).map {
+    val raceMap = array.groupBy(_(0)).map {
+      case (raceId, arr) => raceId -> arr.groupBy(_(1)).map {
         case (umaId, arr2) =>
-          umaId -> (arr2.head(data.cols - 1), arr2.filter(_(10) == 1.0).map { d =>
+          umaId ->(arr2.head(data.cols - 1), arr2.filter(x => x(10) == 1.0 || x(11) == 1.0).map { d =>
             new Data(d(2 until data.cols - 2), d(data.cols - 2), d(1))
           }.toList)
       }
@@ -65,21 +68,40 @@ object Main {
           }
 
           if (map.values.toSeq.length == validMap.values.toSeq.length) {
-            validMap.foreach {
+            val pred = validMap.map {
               case (umaId, (odds, dataList)) =>
                 val head :: tail = dataList
                 val (scores, count, cost) =
-                  calcDataListCost(timeMap, tail.reverse, (x, y, z) => {
+                  calcDataListCost(stdMap, tail.reverse, (x, y, z) => {
                     val std = stdMap.get(makeRaceIdSoft(x))
                     if (std.isEmpty)
                       (0, 0.0)
                     else
-                      (1, Math.abs(y - z) / std.get)
+                      (1, Math.abs(y - z) / std.get._2)
                   }, coefficient)
-                val std = stdMap(makeRaceIdSoft(head.x)) * (1.0 + (cost / (count * 10.0))) / 1.1
-                val predictTime = predict(scores, timeMap, head, coefficient)._2
-                val list = List(vec(0), vec(2), vec(1), vec(3), tail.length, predictTime)
-                pw.println(list.mkString(","))
+                val predictTime = predict(scores, stdMap, head, coefficient)._2
+                (umaId, odds, predictTime)
+            }.toArray
+            val stdSorted = pred.sortBy(_._3)
+            val oddsSorted = pred.sortBy(_._2)
+            val stdAndOdds = stdSorted.slice(0, if (pred.length <= 12) 4 else 5).sortBy(_._2)
+
+            val oddsHead = oddsSorted.head
+            val stdAndOddsHead = stdAndOdds(1)
+
+            val m: Double = mean(pred.map(_._3))
+            val s: Double = stddev(pred.map(_._3))
+
+            val oddsScore = (m - oddsHead._3) * 10 / s + 50
+            val stdAndOddsScore = (m - stdAndOddsHead._3) * 10 / s + 50
+
+            if (stdAndOddsScore > 4 && oddsScore < 60) {
+              printf("%10d\n", raceId.toInt)
+              stdAndOdds.foreach {
+                x =>
+                  println(x._1, x._2, (m - x._3) * 10 / s + 50)
+              }
+              pw.println(raceId, stdAndOddsHead._1, stdAndOddsHead._2, stdAndOddsScore)
             }
           }
       }
