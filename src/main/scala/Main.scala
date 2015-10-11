@@ -81,7 +81,7 @@ object Main {
               vec -> subListBeforeRaceId(raceId, dataList)
           }.filter {
             case (_, list) =>
-              list.count{
+              list.count {
                 case Data(x, _, _) =>
                   stdMap.get(makeRaceIdSoft(x)).isDefined
               } > 0 && stdMap.contains(makeRaceIdSoft(list.head.x))
@@ -92,17 +92,19 @@ object Main {
               case (vec, dataList) =>
                 val head :: tail = dataList
                 val (scores, count, cost) =
-                  calcDataListCost(timeMap, tail.reverse, (x, y, z) => {
-                    val std = stdMap.get(makeRaceIdSoft(x))
-                    if (std.isEmpty)
-                      (0, 0.0)
-                    else
-                      (1, Math.abs(y - z) / std.get)
-                  }, coefficient)
-              val std = stdMap(makeRaceIdSoft(head.x)) * (1.0 + (cost / (count * 10.0))) / 1.1
-              val predictTime = predict(scores, timeMap, head, coefficient)._2
-              val list = List(vec(0), vec(2), vec(1), vec(3), vec(4), vec(5), vec(6), tail.length, predictTime)
-              pw.println(list.mkString(","))
+                  if (tail.exists(_.x(3) == head.x(3)))
+                    calcDataListCost(timeMap, tail.reverse, (x, y, z) => {
+                      val std = stdMap.get(makeRaceIdSoft(x))
+                      if (std.isEmpty)
+                        (0, 0.0)
+                      else
+                        (1, Math.abs(y - z) / std.get)
+                    }, coefficient)
+                  else
+                    (Nil, 0, 0.0)
+                val predictTime = predict(scores, timeMap, head, coefficient)._2
+                val list = List(vec(0), vec(2), vec(1), vec(3), vec(4), vec(5), vec(6), tail.length, predictTime)
+                pw.println(list.mkString(","))
             }
           }
       }
