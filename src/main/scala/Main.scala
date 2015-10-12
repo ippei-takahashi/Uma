@@ -15,7 +15,7 @@ object Main {
   def main(args: Array[String]) {
     val r = new Random()
 
-    val dataCSV = new File("20151011.csv")
+    val dataCSV = new File("20151012.csv")
     val coefficientCSV = new File("coefficient.csv")
     val stdCSV = new File("std.csv")
 
@@ -95,11 +95,11 @@ object Main {
             val oddsScore = (m - oddsHead._3) * 10 / s + 50
             val stdAndOddsScore = (m - stdAndOddsHead._3) * 10 / s + 50
 
-            if (stdAndOddsScore > 4 && oddsScore < 60) {
+            if (stdAndOddsScore > 65 && oddsScore < 60) {
               printf("%10d\n", raceId.toInt)
               stdAndOdds.foreach {
                 x =>
-                  println(x._1, x._2, (m - x._3) * 10 / s + 50)
+                  printf("%10d, %f, %f\n", x._1.toInt, x._2, (m - x._3) * 10 / s + 50)
               }
               pw.println(raceId, stdAndOddsHead._1, stdAndOddsHead._2, stdAndOddsScore)
             }
