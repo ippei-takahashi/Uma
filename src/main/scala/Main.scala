@@ -104,7 +104,7 @@ object Main {
                 } else {
                   scores_.map {
                     case (score, list) =>
-                      (score - 0.3, list)
+                      (score + 0.3, list)
                   }
                 }
 
