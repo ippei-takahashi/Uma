@@ -91,17 +91,23 @@ object Main {
             arrWithData.foreach {
               case (vec, dataList) =>
                 val head :: tail = dataList
-                val (scores, count, cost) =
-                  if (tail.exists(_.x(3) == head.x(3)))
-                    calcDataListCost(timeMap, tail.reverse, (x, y, z) => {
-                      val std = stdMap.get(makeRaceIdSoft(x))
-                      if (std.isEmpty)
-                        (0, 0.0)
-                      else
-                        (1, Math.abs(y - z) / std.get)
-                    }, coefficient)
-                  else
-                    (Nil, 0, 0.0)
+                val (scores_, count, cost) =
+                  calcDataListCost(timeMap, tail.reverse, (x, y, z) => {
+                    val std = stdMap.get(makeRaceIdSoft(x))
+                    if (std.isEmpty)
+                      (0, 0.0)
+                    else
+                      (1, Math.abs(y - z) / std.get)
+                  }, coefficient)
+                val scores = if (tail.exists(_.x(3) == head.x(3))) {
+                  scores_
+                } else {
+                  scores_.map {
+                    case (score, list) =>
+                      (score - 0.3, list)
+                  }
+                }
+
                 val predictTime = predict(scores, timeMap, head, coefficient)._2
                 val list = List(vec(0), vec(2), vec(1), vec(3), vec(4), vec(5), vec(6), tail.length, predictTime)
                 pw.println(list.mkString(","))
