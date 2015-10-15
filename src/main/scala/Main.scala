@@ -2,6 +2,12 @@ import java.io._
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
+import scala.xml._
+import scala.xml.parsing.NoBindingFactoryAdapter
+
+import nu.validator.htmlparser.sax.HtmlParser
+import nu.validator.htmlparser.common.XmlViolationPolicy
+import org.xml.sax.InputSource
 
 import dispatch._
 import dispatch.Defaults._
@@ -9,54 +15,96 @@ import dispatch.Defaults._
 object Main {
 
   val YEAR_START = 2008
-  val YEAR_END = 2015
+  val YEAR_END = 2012
 
-  val MONTH_START = 1
-  val MONTH_END = 12
+  val PAGE_START = 0
+  val PAGE_END = 39
 
-  val DAY_START = 1
-  val DAY_END = 31
-
-  val BABA_START = 1
-  val BABA_END = 40
-
-  val RACE_START = 1
-  val RACE_END = 12
+  val BASE_URL = "http://www.keiba.go.jp"
 
   def main(args: Array[String]): Unit = {
+    import XmlFilter._
+
     for {
       year <- YEAR_START to YEAR_END
-      month <- MONTH_START to MONTH_END
-      day <- DAY_START to DAY_END
+      page <- PAGE_START to PAGE_END
     } {
-      val resF = Future.sequence {
-        for {
-          baba <- BABA_START to BABA_END
-          race <- RACE_START to RACE_END
-        } yield {
-          val urlString =
-            "http://www.keiba.go.jp/KeibaWeb/TodayRaceInfo/RaceList?k_raceDate=%04d/%02d/%02d&k_raceNo=%d&k_babaCode=%d".
-              format(year, month, day, race, baba)
-          val request = url(urlString)
-          Http(request OK (r => r)).map {
-            res => (baba, race, res)
+      val urlString =
+        s"$BASE_URL/KeibaWeb/DataRoom/RaceHorseList?k_flag=1&k_pageNum=%d&k_horseName=&k_horsebelong=*&k_birthYear=%d&k_fatherHorse=&k_motherHorse=&k_activeCode=2&k_dataKind=1".
+          format(page, year)
+      val request = url(urlString)
+      val responseF = Http(request OK (r => r))
+
+      val response = Await.result(responseF, 60 seconds)
+
+      val reader = new BufferedReader(new InputStreamReader(response.getResponseBodyAsStream))
+      val xml = toNode(reader)
+
+      val tr = xml \\@("tr", "class", "dbnote")
+      val hrefs = tr.toList.map(_ \ "td").map(_ (1)).map(x => (x \\ "a")(0).attribute("href")).collect {
+        case Some(seq) =>
+          seq.head.text
+      }
+
+      val seqF = Future.sequence {
+        hrefs.map {
+          href =>
+            val fileName = href.split("k_lineageLoginCode=")(1).split("&").head + ".html"
+            val req = url(s"$BASE_URL$href")
+
+            Http(request OK (r => r))
+        }
+      }.map {
+        _.foreach {
+          res =>
+          val file = new File("fileName")
+          val pw = new PrintWriter(new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), "UTF-8")))
+
+          try {
+            pw.write(res.getResponseBody())
+          } finally {
+            pw.close()
           }
         }
       }
-      val res = Await.result(resF, 60 seconds)
-      res.foreach {
-        case (baba, race, response) =>
-        val file = new File("raceLocal/%04d%02d%02d-%d-%d.html".format(year, month, day, baba, race))
-        val pw = new PrintWriter(new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), "UTF-8")))
-        try {
-          pw.write(response.getResponseBody())
-        } finally {
-          pw.close()
-        }
-      }
+
+      val result = Await.result(seqF, 300 seconds)
+      println(result)
     }
   }
+
+  def toNode(reader: Reader): Node = {
+    val hp = new HtmlParser
+    hp.setNamePolicy(XmlViolationPolicy.ALLOW)
+    hp.setCommentPolicy(XmlViolationPolicy.ALLOW)
+
+    val saxer = new NoBindingFactoryAdapter
+    hp.setContentHandler(saxer)
+    hp.parse(new InputSource(reader))
+
+    saxer.rootElem
+  }
+
+  object XmlFilter {
+    implicit def nodeSeqToMyXmlFilter(nodeSeq: NodeSeq): XmlFilter =
+      new XmlFilter(nodeSeq)
+  }
+
+  class XmlFilter(that: NodeSeq) {
+
+    import XmlFilter._
+
+    def attrFilter(name: String, value: String): NodeSeq = {
+      that filter (_ \ ("@" + name) exists (_.text == value))
+    }
+
+    def \\@(nodeName: String, attrName: String, value: String): NodeSeq = {
+      that \\ nodeName attrFilter(attrName, value)
+    }
+
+    def \@(nodeName: String, attrName: String, value: String): NodeSeq = {
+      that \ nodeName attrFilter(attrName, value)
+    }
+  }
+
 }
-/*
-http://www.keiba.go.jp/KeibaWeb/DataRoom/RaceHorseList?k_flag=1&k_pageNum=0&k_horseName=&k_horsebelong=*&k_birthYear=2008&k_fatherHorse=&k_motherHorse=&k_activeCode=2&k_dataKind=1
- */
