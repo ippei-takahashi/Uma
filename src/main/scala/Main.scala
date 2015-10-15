@@ -14,8 +14,8 @@ import dispatch.Defaults._
 
 object Main {
 
-  val YEAR_START = 2008
-  val YEAR_END = 2012
+  val YEAR_START = 2013
+  val YEAR_END = 2013
 
   val PAGE_START = 0
   val PAGE_END = 39
@@ -41,7 +41,7 @@ object Main {
       val xml = toNode(reader)
 
       val tr = xml \\@("tr", "class", "dbnote")
-      val hrefs = tr.toList.map(_ \ "td").map(_ (1)).map(x => (x \\ "a")(0).attribute("href")).collect {
+      val hrefs = tr.toList.map(_ \ "td").map(_(1)).map(x => (x \\ "a")(0).attribute("href")).collect {
         case Some(seq) =>
           seq.head.text
       }
@@ -49,22 +49,22 @@ object Main {
       val seqF = Future.sequence {
         hrefs.map {
           href =>
-            val fileName = href.split("k_lineageLoginCode=")(1).split("&").head + ".html"
+            val fileName = "raceLocal/" + href.split("k_lineageLoginCode=")(1).split("&").head + ".html"
             val req = url(s"$BASE_URL$href")
 
-            Http(request OK (r => r))
+            Http(req OK (r => r)).map(fileName -> _)
         }
       }.map {
         _.foreach {
-          res =>
-          val file = new File("fileName")
-          val pw = new PrintWriter(new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), "UTF-8")))
+          case (fileName, res) =>
+            val file = new File(fileName)
+            val pw = new PrintWriter(new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), "UTF-8")))
 
-          try {
-            pw.write(res.getResponseBody())
-          } finally {
-            pw.close()
-          }
+            try {
+              pw.write(res.getResponseBody())
+            } finally {
+              pw.close()
+            }
         }
       }
 
