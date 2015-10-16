@@ -39,7 +39,10 @@ object Main {
         val s: Double = stddev(stdSorted.map(_(5)))
 
         val stdAndOdds = stdSorted.slice(0, if (arr.length <= 12) 4 else 5).sortBy(_(3))
-        val stdAndOddsHead = stdAndOdds(1)
+        val stdAndOddsHead = stdAndOdds.head
+        val stdAndOddsSecond = stdAndOdds(1)
+        val stdAndOddsThird = stdAndOdds(2)
+
 
         val stdHead = stdSorted.head
         val oddsHead = oddsSorted.head
@@ -48,21 +51,23 @@ object Main {
         val stdScore = (m - stdHead(5)) * 10 / s + 50
         val oddsScore = (m - oddsHead(5)) * 10 / s + 50
         val oddsSecondScore = (m - oddsHead(5)) * 10 / s + 50
-        val stdAndOddsScore = (m - stdAndOddsHead(5)) * 10 / s + 50
+        val stdAndOddsHeadScore = (m - stdAndOddsHead(5)) * 10 / s + 50
+        val stdAndOddsSecondScore = (m - stdAndOddsSecond(5)) * 10 / s + 50
+        val stdAndOddsThirdScore = (m - stdAndOddsThird(5)) * 10 / s + 50
 
         raceCount += 1
-        if (stdScore > 65 && oddsScore < 55 &&  oddsSecondScore > 60 && oddsHead != stdHead) {
+        if (stdAndOddsThirdScore > 65 && oddsScore < 60) {
           over60Count += 1
-          if (stdHead(2) + oddsSecond(2) == 3.0) {
-            oddsCount += stdHead(3) * oddsHead(3)
+          if (stdAndOddsThird(2) == 1.0) {
+            oddsCount += stdAndOddsThird(3)
             over60WinCount += 1
           } else {
             over60LoseCount += 1
           }
         }
     }
-
-    println(raceCount, oddsCount / over60WinCount, over60Count, over60WinCount, over60LoseCount)
+    val rtn = oddsCount / over60WinCount * over60WinCount / over60Count
+    println(raceCount, oddsCount / over60WinCount, over60Count, over60WinCount, over60LoseCount, rtn)
   }
 
   def subListBeforeRaceId(raceId: Double, list: List[Data]): List[Data] = list match {
