@@ -15,12 +15,19 @@ object Main {
   def main(args: Array[String]) {
     val r = new Random()
 
-    val dataCSV = new File("20151012.csv")
+    val dataCSV = new File("data.csv")
     val coefficientCSV = new File("coefficient.csv")
     val stdCSV = new File("std.csv")
 
     val a = new BufferedReader(new FileReader(dataCSV))
     var b = a.readLine()
+
+    while (b != null) {
+      if (b.split(",").length != 18) {
+        println(b)
+      }
+      b = a.readLine
+    }
 
     val data: DenseMatrix[Double] = csvread(dataCSV)
     val size = data.rows
