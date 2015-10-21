@@ -8,15 +8,13 @@ import breeze.stats._
 object Main {
   type Gene = DenseVector[Double]
 
-  case class Data(x: DenseVector[Double], y: Double, z: Double)
+  case class Data(x: DenseVector[Double], y: Double, raceId: Double)
 
   def main(args: Array[String]) {
     val r = new Random()
 
-    val dataCSV = new File("data.csv")
+    val dataCSV = new File("analyze.csv")
     val coefficientCSV = new File("coefficient.csv")
-    val raceCSV = new File("race.csv")
-    val stdCSV = new File("std.csv")
 
     val data: DenseMatrix[Double] = csvread(dataCSV)
     val size = data.rows
@@ -26,29 +24,17 @@ object Main {
       array(i) = data(i, ::).t
     }
 
-    val stdData: DenseMatrix[Double] = csvread(stdCSV)
-    val stdSize = stdData.rows
-
-    val stdArray = Array.ofDim[DenseVector[Double]](stdSize)
-    for (i <- 0 until stdSize) {
-      stdArray(i) = stdData(i, ::).t
-    }
-    val stdMap = stdArray.groupBy(_(0)).map {
-      case (id, arr) =>
-        id -> arr.head(1)
-    }
-
-    val testData = array.groupBy(_(0)).map {
-      case (id, arr) => id -> arr.map { d =>
-        new Data(d(1 until data.cols - 2), d(data.cols - 2), d(data.cols - 1))
+    val testData = array.groupBy(_(1)).values.toList.map {
+      _.map { d =>
+        new Data(d(2 until data.cols - 1), d(data.cols - 1),  d(0))
       }.toList.filter {
-        case Data(x, _, _) =>
-          x(4) == 1.0
+        case Data(x, _) =>
+          x(4) == 1.0 || x(5) == 1.0
       }
-    }
+    }.filter(_.nonEmpty)
 
-    val timeMap: Map[Double, (Double, Double)] = testData.values.flatten.groupBy {
-      case Data(x, _, _) =>
+    val raceMap: Map[Double, (Double, Double)] = testData.flatten.groupBy {
+      case Data(x, y) =>
         makeRaceIdSoft(x)
     }.map {
       case (idx, arr) =>
@@ -56,55 +42,36 @@ object Main {
         idx ->(mean(times), stddev(times))
     }
 
+
     val coefficient: Gene = csvread(coefficientCSV)(0, ::).t
 
-    val raceData: DenseMatrix[Double] = csvread(raceCSV)
-    val raceSize = raceData.rows
-
-    val raceArray = Array.ofDim[DenseVector[Double]](raceSize)
-    for (i <- 0 until raceSize) {
-      raceArray(i) = raceData(i, ::).t
-    }
-
-    val raceMap = raceArray.groupBy(_(0))
-
-    val outFile = new File("raceWithStd.csv")
+    val outFile = new File("std.csv")
     val pw = new PrintWriter(outFile)
 
     try {
-      raceMap.foreach {
-        case (raceId, arr) =>
-          val arrWithData = arr.map { vec =>
-            vec -> testData.get(vec(2))
-          }.collect {
-            case (vec, Some(dataList)) =>
-              vec -> subListBeforeRaceId(raceId, dataList)
-          }.filter {
-            case (_, list) =>
-              list.count{
-                case Data(x, _, _) =>
-                  stdMap.get(makeRaceIdSoft(x)).isDefined
-              } > 0 && stdMap.contains(makeRaceIdSoft(list.head.x))
-          }
+      testData.groupBy { list =>
+        val Data(x, _, raceId) = list.last
+        makeRaceIdSoft(x)
+      }.toList.collect {
+        case (id, list) if list.count(_.length > 3) > 30 =>
+          id -> list.filter(_.length > 3)
+      }.sortBy {
+        case (id, _) =>
+          id
+      }.foreach {
+        case (id, list) =>
+          val errors = list.map { dataList =>
+            calcDataListCost(raceMap, dataList, (x, y) => Math.abs(x - y), coefficient)
+          }.toArray
 
-          if (arr.length == arrWithData.length) {
-            arrWithData.foreach {
-              case (vec, dataList) =>
-                val head :: tail = dataList
-                val (scores, count, cost) =
-                  calcDataListCost(timeMap, tail.reverse, (x, y, z) => {
-                    val std = stdMap.get(makeRaceIdSoft(x))
-                    if (std.isEmpty)
-                      (0, 0.0)
-                    else
-                      (1, Math.abs(y - z) / std.get)
-                  }, coefficient)
-              val std = stdMap(makeRaceIdSoft(head.x)) * (1.0 + (cost / (count * 10.0))) / 1.1
-              val predictTime = predict(scores, timeMap, head, coefficient)._2
-              val list = List(vec(0), vec(2), vec(1), vec(3), vec(4), vec(5), vec(6), tail.length, predictTime)
-              pw.println(list.mkString(","))
-            }
-          }
+          val times = list.map { dataList =>
+            dataList.head.y
+          }.toArray
+
+          val timeMean = mean(times)
+          val errorStd = stddev(errors)
+
+          pw.println(s"$id,$errorStd,$timeMean")
       }
     } catch {
       case ex: Exception =>
@@ -114,30 +81,21 @@ object Main {
     }
   }
 
-  def subListBeforeRaceId(raceId: Double, list: List[Data]): List[Data] = list match {
-    case x :: xs if x.z == raceId =>
-      x :: xs
-    case _ :: xs =>
-      subListBeforeRaceId(raceId, xs)
-    case _ =>
-      Nil
-  }
-
-  def findNearest(timeMap: Map[Double, (Double, Double)], vector: DenseVector[Double]): (Double, Double) = {
+  def findNearest(raceMap: Map[Double, (Double, Double)], vector: DenseVector[Double]): (Double, Double) = {
     val raceId = makeRaceIdSoft(vector)
-    timeMap.minBy {
+    raceMap.minBy {
       case (idx, value) =>
         Math.abs(raceId - idx)
     }._2
   }
 
-  def prePredict(timeMap: Map[Double, (Double, Double)], stdScore: Double, vector: DenseVector[Double]): Double = {
-    val (m, s) = timeMap.getOrElse(makeRaceIdSoft(vector), findNearest(timeMap, vector))
+  def prePredict(raceMap: Map[Double, (Double, Double)], stdScore: Double, vector: DenseVector[Double]): Double = {
+    val (m, s) = raceMap.getOrElse(makeRaceIdSoft(vector), findNearest(raceMap, vector))
     stdScore * s + m
   }
 
-  def calcStdScore(timeMap: Map[Double, (Double, Double)], d: Data): Double = {
-    val (m, s) = timeMap.getOrElse(makeRaceIdSoft(d.x), findNearest(timeMap, d.x))
+  def calcStdScore(raceMap: Map[Double, (Double, Double)], d: Data): Double = {
+    val (m, s) = raceMap.getOrElse(makeRaceIdSoft(d.x), findNearest(raceMap, d.x))
     if (s == 0.0) {
       0
     } else {
@@ -146,37 +104,30 @@ object Main {
   }
 
   def predict(prevScores: List[(Double, DenseVector[Double])],
-              timeMap: Map[Double, (Double, Double)],
+              raceMap: Map[Double, (Double, Double)],
               d: Data,
               gene: Gene): (List[(Double, DenseVector[Double])], Double) = {
-    val score = (calcStdScore(timeMap, d), d.x) :: prevScores
+    val score = (calcStdScore(raceMap, d), d.x) :: prevScores
     val p = prevScores.foldLeft((0.0, 0.0)) {
       case ((scores, weights), (s, vector)) =>
         val distInv = 1.0 / vectorDistance(d.x, vector, gene)
         (scores + s * distInv, weights + distInv)
     }
-    val out = prePredict(timeMap, if (prevScores.isEmpty) 0.0 else p._1 / p._2, d.x)
+    val out = prePredict(raceMap, if (prevScores.isEmpty) 0.0 else p._1 / p._2, d.x)
 
     (score, out)
   }
 
-  def calcDataListCost(timeMap: Map[Double, (Double, Double)],
+  def calcDataListCost(raceMap: Map[Double, (Double, Double)],
                        dataList: List[Data],
-                       costFunction: (DenseVector[Double], Double, Double) => (Int, Double),
-                       gene: Gene) = {
-    dataList.foldLeft((Nil: List[(Double, DenseVector[Double])], 0, 0.0)) {
-      case ((prevScores, prevCount, prevCost), d) =>
-        val (scores, out) = predict(prevScores, timeMap, d, gene)
-        val (count, cost) = costFunction(d.x, d.y, out)
-
-        val newCount = prevCount + count
-        val newCost = prevCost + cost
-
-        val newScores = if (count > 0) scores else prevScores
-
-        (newScores, newCount, newCost)
-    }
-  }
+                       costFunction: (Double, Double) => Double,
+                       gene: Gene) =
+    dataList.foldLeft((Nil: List[(Double, DenseVector[Double])], 0.0)) {
+      case ((prevScores, _), d) =>
+        val (scores, out) = predict(prevScores, raceMap, d, gene)
+        val cost = costFunction(d.y, out)
+        (scores, cost)
+    }._2
 
 
   def vectorDistance(
