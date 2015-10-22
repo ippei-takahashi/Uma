@@ -8,7 +8,7 @@ import breeze.stats._
 object Main {
   type Gene = DenseVector[Double]
 
-  case class Data(x: DenseVector[Double], y: Double, raceId: Double)
+  case class Data(x: DenseVector[Double], y: Double)
 
   def main(args: Array[String]) {
     val r = new Random()
@@ -26,7 +26,7 @@ object Main {
 
     val testData = array.groupBy(_(1)).values.toList.map {
       _.map { d =>
-        new Data(d(2 until data.cols - 1), d(data.cols - 1),  d(0))
+        new Data(DenseVector.vertcat(d(2 until data.cols - 1), DenseVector(d(0))), d(data.cols - 1))
       }.toList.filter {
         case Data(x, _) =>
           x(4) == 1.0 || x(5) == 1.0
@@ -50,7 +50,7 @@ object Main {
 
     try {
       testData.groupBy { list =>
-        val Data(x, _, raceId) = list.last
+        val Data(x, _) = list.last
         makeRaceIdSoft(x)
       }.toList.collect {
         case (id, list) if list.count(_.length > 3) > 30 =>
@@ -129,6 +129,9 @@ object Main {
         (scores, cost)
     }._2
 
+  def makeBabaId(vector: DenseVector[Double]): Double =
+    vector(vector.length - 1) % 100
+
 
   def vectorDistance(
                       vector1: DenseVector[Double],
@@ -141,5 +144,6 @@ object Main {
   }
 
   def makeRaceIdSoft(vector: DenseVector[Double]): Double =
-    vector(3) * 1000 + vector(1) * 100
+    makeBabaId(vector) * 100000 + vector(3) * 10 + vector(1)
+
 }
