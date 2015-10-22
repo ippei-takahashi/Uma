@@ -16,6 +16,16 @@ object Main {
     val dataCSV = new File("analyze.csv")
     val coefficientCSV = new File("coefficient.csv")
 
+    val a = new BufferedReader(new FileReader(dataCSV))
+    var b = a.readLine()
+
+    while (b != null) {
+      if (b.split(",").length != 18) {
+        println(b)
+      }
+      b = a.readLine
+    }
+
     val data: DenseMatrix[Double] = csvread(dataCSV)
     val size = data.rows
 
@@ -26,7 +36,7 @@ object Main {
 
     val testData = array.groupBy(_(1)).values.toList.map {
       _.map { d =>
-        new Data(DenseVector.vertcat(d(2 until data.cols - 1), DenseVector(d(0))), d(data.cols - 1))
+        new Data(DenseVector.vertcat(d(2 until data.cols - 2), DenseVector(d(0))), d(data.cols - 2))
       }.toList.filter {
         case Data(x, _) =>
           x(4) == 1.0 || x(5) == 1.0
@@ -71,6 +81,7 @@ object Main {
           val timeMean = mean(times)
           val errorStd = stddev(errors)
 
+          println(s"$id,$errorStd,$timeMean")
           pw.println(s"$id,$errorStd,$timeMean")
       }
     } catch {
@@ -138,6 +149,7 @@ object Main {
                       vector2: DenseVector[Double],
                       gene: Gene): Double = {
     100 +
+      (if (makeBabaId(vector1) == makeBabaId(vector2)) 0 else 100) +
       Math.abs(vector1(3) - vector2(3)) * gene(0) +
       Math.abs(vector1(0) - vector2(0)) * gene(1) +
       (if (vector1(1) != vector2(1) || vector1(2) != vector2(2)) 1.0 else 0.0) * gene(2)
