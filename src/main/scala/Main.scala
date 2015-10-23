@@ -8,7 +8,7 @@ import breeze.stats._
 object Main {
   type Gene = DenseVector[Double]
 
-  case class Data(x: DenseVector[Double], y: Double)
+  case class Data(x: DenseVector[Double], y: Double, raceId: Double)
 
   def main(args: Array[String]) {
     val r = new Random()
@@ -42,20 +42,23 @@ object Main {
     for (i <- 0 until stdSize) {
       stdArray(i) = stdData(i, ::).t
     }
-    val stdMap = stdArray.groupBy(_(0)).map {
+    val stdMap = stdArray.groupBy(_ (0)).map {
       case (id, arr) =>
         id ->(arr.head(2), arr.head(1))
     }
 
-    val raceMap = array.groupBy(_(0)).map {
-      case (raceId, arr) => raceId -> arr.groupBy(_(1)).map {
-        case (umaId, arr2) =>
-          umaId ->(arr2.head(data.cols - 1), arr2.filter(x => x(10) == 1.0 || x(11) == 1.0).map { d =>
-            new Data(DenseVector.vertcat(d(2 until data.cols - 2), DenseVector(d(data.cols - 1), d(0))), d(data.cols - 2))
-          }.toList)
-      }
+    val umaMap = array.groupBy(_ (1)).map {
+      case (id, arr) => id -> arr.filter(x => x(10) == 1.0 || x(11) == 1.0).map { d =>
+        new Data(DenseVector.vertcat(d(2 until data.cols), DenseVector(d(0))), d(data.cols - 2), d(0))
+      }.sortBy(_.x(0))
     }
 
+    val raceMap = array.groupBy(_ (0)).map {
+      case (raceId, arr) => raceId -> arr.filter(x => x(10) == 1.0 || x(11) == 1.0).map {
+        d =>
+          d(1) -> umaMap.get(d(1)).get.filter(d2 => d2.raceId < d(0))
+      }.toMap
+    }
 
     val coefficient: Gene = csvread(coefficientCSV)(0, ::).t
 
@@ -63,26 +66,23 @@ object Main {
     val pw = new PrintWriter(outFile)
 
     try {
-      raceMap.filter{
-        case (_, map) =>
-          map.values.toSeq.forall(_._2.nonEmpty) && map.values.toSeq.map(_._2.head.x).sortBy(x => x(x.length - 2)).foldLeft(0.0) {
-            (acc, now) =>
-              now(now.length - 2) - acc + 1.0
-          } == 0.0
-      }.foreach {
+      raceMap.filter(_._2.values.toSeq.length > 5).foreach {
         case (raceId, map) =>
-          val validMap = map.filter {
-            case (_, (_, seq)) =>
-              seq.count {
-                case Data(x, _) =>
-                  stdMap.get(makeRaceIdSoft(x)).isDefined
-              } > 1 && stdMap.contains(makeRaceIdSoft(seq.head.x))
-          }
+          val validArr = map.values.toSeq.filter(arr2 => arr2.count {
+            case Data(x, _, _) =>
+              stdMap.get(makeRaceIdSoft(x)).isDefined
+          } > 0 && stdMap.contains(makeRaceIdSoft(arr2.head.x))
+          )
 
-          if (map.values.toSeq.length == validMap.values.toSeq.length) {
-            validMap.toSeq.sortBy(_._2._2.head.y).zipWithIndex.foreach {
-              case ((umaId, (odds, dataList)), index) =>
-                val head :: tail = dataList
+          if (map.values.toSeq.length == validArr.length) {
+            println(22)
+
+            map.toSeq.sortBy {
+              case (_, dataList) =>
+                dataList.head.y
+            }.zipWithIndex.foreach {
+              case ((umaId, dataList), index) =>
+                val head :: tail = dataList.toList
                 val (scores, count, cost) =
                   calcDataListCost(stdMap, tail.reverse, (x, y, z) => {
                     val std = stdMap.get(makeRaceIdSoft(x))
@@ -91,9 +91,8 @@ object Main {
                     else
                       (1, Math.abs(y - z) / std.get._2)
                   }, coefficient)
-                
                 val predictTime = predict(scores, stdMap, head, coefficient)._2
-                val list = List(raceId, umaId, index + 1, odds, head.x(3), head.x(4), head.x(5), head.x(6), tail.length, predictTime)
+                val list = List(raceId, umaId, index + 1, head.x(head.x.length - 1), head.x(3), head.x(4), head.x(5), head.x(6), tail.length, predictTime)
                 pw.println(list.mkString(","))
             }
           }
@@ -176,7 +175,8 @@ object Main {
       (if (vector1(1) != vector2(1) || vector1(2) != vector2(2)) 1.0 else 0.0) * gene(2)
   }
 
-  def makeRaceIdSoft(vector: DenseVector[Double]): Double =
+  def makeRaceIdSoft(vector: DenseVector[Double]): Double = {
     makeBabaId(vector) * 100000 + vector(3) * 10 + vector(1)
+  }
 
 }
