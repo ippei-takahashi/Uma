@@ -50,16 +50,15 @@ object Main {
     val umaMap = array.groupBy(_ (1)).map {
       case (id, arr) => id -> arr.filter(x => x(10) == 1.0 || x(11) == 1.0).map { d =>
         new Data(DenseVector.vertcat(d(2 until data.cols), DenseVector(d(0))), d(data.cols - 2), d(0))
-      }.sortBy(_.x(0))
+      }.sortBy(-_.x(0))
     }
 
     val raceMap = array.groupBy(_ (0)).map {
       case (raceId, arr) => raceId -> arr.filter(x => x(10) == 1.0 || x(11) == 1.0).map {
         d =>
-          d(1) -> umaMap.get(d(1)).get.filter(d2 => d2.raceId < d(0))
+          d(1) -> umaMap.get(d(1)).get.filter(d2 => d2.raceId <= d(0))
       }.toMap
     }
-
     val coefficient: Gene = csvread(coefficientCSV)(0, ::).t
 
     val outFile = new File("raceWithStd.csv")
@@ -74,9 +73,7 @@ object Main {
           } > 0 && stdMap.contains(makeRaceIdSoft(arr2.head.x))
           )
 
-          if (map.values.toSeq.length == validArr.length) {
-            println(22)
-
+          if (validArr.length > 2 && !map.toSeq.exists(_._2.isEmpty)) {
             map.toSeq.sortBy {
               case (_, dataList) =>
                 dataList.head.y
