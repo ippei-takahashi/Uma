@@ -53,7 +53,7 @@ object Main {
       case (raceId, arr) => raceId -> arr.groupBy(_(1)).map {
         case (umaId, arr2) =>
           umaId ->(arr2.head(data.cols - 1), arr2.filter(x => x(10) == 1.0 || x(11) == 1.0).map { d =>
-            new Data(d(2 until data.cols - 2), d(data.cols - 2), d(1))
+            new Data(DenseVector.vertcat(d(2 until data.cols), DenseVector(d(0))), d(data.cols - 2), d(1))
           }.toList)
       }
     }
@@ -103,10 +103,10 @@ object Main {
             val stdAndOddsScore = (m - stdAndOddsHead._3) * 10 / s + 50
 
             if (stdAndOddsScore > 65 && oddsScore < 60) {
-              printf("%10d\n", raceId.toInt)
+              printf("%12d\n", raceId.toLong)
               stdAndOdds.foreach {
                 x =>
-                  printf("%10d, %f, %f\n", x._1.toInt, x._2, (m - x._3) * 10 / s + 50)
+                  printf("%12d, %f, %f\n", x._1.toLong, x._2, (m - x._3) * 10 / s + 50)
               }
               pw.println(raceId, stdAndOddsHead._1, stdAndOddsHead._2, stdAndOddsScore)
             }
@@ -184,17 +184,22 @@ object Main {
     }
   }
 
+  def makeBabaId(vector: DenseVector[Double]): Double =
+    vector(vector.length - 1) % 100
+
 
   def vectorDistance(
                       vector1: DenseVector[Double],
                       vector2: DenseVector[Double],
                       gene: Gene): Double = {
     100 +
+      (if (makeBabaId(vector1) == makeBabaId(vector2)) 0 else 100) +
       Math.abs(vector1(3) - vector2(3)) * gene(0) +
       Math.abs(vector1(0) - vector2(0)) * gene(1) +
       (if (vector1(1) != vector2(1) || vector1(2) != vector2(2)) 1.0 else 0.0) * gene(2)
   }
 
-  def makeRaceIdSoft(vector: DenseVector[Double]): Double =
-    vector(3) * 1000 + vector(1) * 100
+  def makeRaceIdSoft(vector: DenseVector[Double]): Double = {
+    makeBabaId(vector) * 100000 + vector(3) * 10 + vector(1)
+  }
 }
