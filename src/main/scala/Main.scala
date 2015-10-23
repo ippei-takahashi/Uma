@@ -81,8 +81,8 @@ object Main {
           val timeMean = mean(times)
           val errorStd = stddev(errors)
 
-          println(s"$id,$errorStd,$timeMean")
-          pw.println(s"$id,$errorStd,$timeMean")
+          println(s"$id,$errorStd,$timeMean,${list.length}")
+          pw.println(s"$id,$errorStd,$timeMean,${list.length}")
       }
     } catch {
       case ex: Exception =>
