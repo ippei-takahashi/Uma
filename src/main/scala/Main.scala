@@ -93,12 +93,14 @@ object Main {
             val oddsSorted = pred.sortBy(_._2)
             val stdAndOdds = stdSorted.slice(0, if (pred.length <= 12) 4 else 5).sortBy(_._2)
 
+            val stdHead = oddsSorted.head
             val oddsHead = oddsSorted.head
             val stdAndOddsHead = stdAndOdds(1)
 
             val m: Double = mean(pred.map(_._3))
             val s: Double = stddev(pred.map(_._3))
 
+            val stdScore = (m - stdHead._3) * 10 / s + 50
             val oddsScore = (m - oddsHead._3) * 10 / s + 50
             val stdAndOddsScore = (m - stdAndOddsHead._3) * 10 / s + 50
 
