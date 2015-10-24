@@ -52,7 +52,7 @@ object Main {
     val raceMap = array.groupBy(_(0)).map {
       case (raceId, arr) => raceId -> arr.groupBy(_(1)).map {
         case (umaId, arr2) =>
-          umaId ->(arr2.head(data.cols - 1), arr2.filter(x => x(10) == 1.0 || x(11) == 1.0).map { d =>
+          umaId -> (arr2.head(data.cols - 1), arr2.filter(x => x(10) == 1.0 || x(11) == 1.0).map { d =>
             new Data(DenseVector.vertcat(d(2 until data.cols), DenseVector(d(0))), d(data.cols - 2), d(1))
           }.toList)
       }
@@ -93,7 +93,7 @@ object Main {
             val oddsSorted = pred.sortBy(_._2)
             val stdAndOdds = stdSorted.slice(0, if (pred.length <= 12) 4 else 5).sortBy(_._2)
 
-            val stdHead = oddsSorted.head
+            val stdHead = stdSorted.head
             val oddsHead = oddsSorted.head
             val stdAndOddsHead = stdAndOdds(1)
 
@@ -104,13 +104,13 @@ object Main {
             val oddsScore = (m - oddsHead._3) * 10 / s + 50
             val stdAndOddsScore = (m - stdAndOddsHead._3) * 10 / s + 50
 
-            if (stdAndOddsScore > 65 && oddsScore < 60) {
+            if (stdScore > 70 && oddsScore < 60) {
               printf("%12d\n", raceId.toLong)
-              stdAndOdds.foreach {
+              stdSorted.foreach {
                 x =>
                   printf("%12d, %f, %f\n", x._1.toLong, x._2, (m - x._3) * 10 / s + 50)
               }
-              pw.println(raceId, stdAndOddsHead._1, stdAndOddsHead._2, stdAndOddsScore)
+              pw.println(raceId, stdHead._1, stdHead._2, stdHead)
             }
           }
       }
