@@ -6,7 +6,16 @@ import breeze.numerics._
 import breeze.stats._
 
 object Main {
-  type Gene = DenseVector[Double]
+  type Gene = DenseMatrix[Double]
+
+  private[this] val DISTANCE_TYPE_SHORT = 0
+  private[this] val DISTANCE_TYPE_MEDIUM = 1
+  private[this] val DISTANCE_TYPE_SEMI_LONG = 2
+  private[this] val DISTANCE_TYPE_LONG = 3
+
+
+  private[this] val NUM_OF_DISTANCE_TYPE= 4
+  private[this] val NUM_OF_RACE_TYPE = 23
 
   case class Data(x: DenseVector[Double], y: Double, z: Double)
 
@@ -14,9 +23,11 @@ object Main {
     val r = new Random()
 
     val dataCSV = new File("data.csv")
-    val coefficientCSV = new File("coefficient.csv")
     val raceCSV = new File("race.csv")
     val stdCSV = new File("std.csv")
+
+    val coefficient: Gene = DenseMatrix.zeros[Double](NUM_OF_DISTANCE_TYPE, NUM_OF_RACE_TYPE)
+
 
     val data: DenseMatrix[Double] = csvread(dataCSV)
     val size = data.rows
@@ -181,12 +192,8 @@ object Main {
 
   def vectorDistance(
                       vector1: DenseVector[Double],
-                      vector2: DenseVector[Double],
-                      gene: Gene): Double = {
-    100 +
-      Math.abs(vector1(3) - vector2(3)) * gene(0) +
-      Math.abs(vector1(0) - vector2(0)) * gene(1) +
-      (if (vector1(1) != vector2(1) || vector1(2) != vector2(2)) 1.0 else 0.0) * gene(2)
+                      vector2: DenseVector[Double]): Double = {
+    100 + Math.abs(vector1(0) - vector2(0)) * 250
   }
 
   def makeRaceIdSoft(vector: DenseVector[Double]): Double =
