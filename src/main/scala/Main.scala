@@ -110,7 +110,7 @@ object Main {
                 x =>
                   printf("%12d, %f, %f\n", x._1.toLong, x._2, (m - x._3) * 10 / s + 50)
               }
-              pw.println(raceId, stdHead._1, stdHead._2, stdHead)
+              pw.println(raceId, stdHead._1, stdHead._2, stdHead._3)
             }
           }
       }
