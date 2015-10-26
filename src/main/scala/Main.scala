@@ -12,23 +12,20 @@ object Main {
   private[this] val NUM_OF_RACE_TYPE = 23
 
   private[this] val NUM_OF_LEARNING_LOOP = 200000
-  private[this] val DATA_RATE = 0.8
+  private[this] val TRAIN_RATE = 0.8
   private[this] val LEARNING_RATE = 0.00001
   private[this] val MOMENTUM_RATE = 0.9
   private[this] val BATCH_SIZE = 30
 
   case class Data(x: DenseVector[Double], y: Double)
 
-  case class PredictData(umaId: Double, std: DenseVector[Double])
+  case class PredictData(umaId: Double, data: Data, std: DenseVector[Double])
 
   def main(args: Array[String]) {
     val r = new Random()
 
     val dataCSV = new File("data.csv")
-    val raceCSV = new File("race.csv")
     val stdCSV = new File("std.csv")
-
-    val coefficient: Gene = DenseMatrix.zeros[Double](NUM_OF_DISTANCE_TYPE, NUM_OF_RACE_TYPE)
 
     val data: DenseMatrix[Double] = csvread(dataCSV)
     val size = data.rows
@@ -45,12 +42,12 @@ object Main {
     for (i <- 0 until stdSize) {
       stdArray(i) = stdData(i, ::).t
     }
-    val stdMap = stdArray.groupBy(_(0)).map {
+    val stdMap = stdArray.zipWithIndex.groupBy(_._1(0)).map {
       case (id, arr) =>
-        id -> arr.head(1)
+        id ->(arr.head._1(1), arr.head._2)
     }
 
-    val allData = array.groupBy(_(0)).map {
+    val allData = array.groupBy(_ (0)).map {
       case (id, arr) => id -> arr.map { d =>
         new Data(d(1 until data.cols - 2), d(data.cols - 2))
       }.toList.filter {
@@ -77,31 +74,31 @@ object Main {
 
     val stdList = allData.map {
       case (umaId, dataList) =>
-        val head = dataList.head
+        val (head :: tail) = dataList
 
-        val dataListShort = dataList.filter{
+        val dataListShort = tail.filter {
           case Data(x, _) =>
             isShort(x)
         }
 
-        val dataListMiddle = dataList.filter{
+        val dataListMiddle = tail.filter {
           case Data(x, _) =>
             isMiddle(x)
         }
 
-        val dataListSemiLong = dataList.filter{
+        val dataListSemiLong = tail.filter {
           case Data(x, _) =>
             isSemiLong(x)
         }
 
-        val dataListLong = dataList.filter{
+        val dataListLong = tail.filter {
           case Data(x, _) =>
             isLong(x)
         }
 
         val (scoresShort, _, _) =
           calcDataListCost(timeMap, dataListShort, (x, y, z) => {
-            val std = stdMap.get(makeRaceIdSoft(x))
+            val std = stdMap.get(makeRaceIdSoft(x)).map(_._1)
             if (std.isEmpty)
               (0, 0.0)
             else
@@ -110,7 +107,7 @@ object Main {
 
         val (scoresMiddle, _, _) =
           calcDataListCost(timeMap, dataListMiddle, (x, y, z) => {
-            val std = stdMap.get(makeRaceIdSoft(x))
+            val std = stdMap.get(makeRaceIdSoft(x)).map(_._1)
             if (std.isEmpty)
               (0, 0.0)
             else
@@ -119,7 +116,7 @@ object Main {
 
         val (scoresSemiLong, _, _) =
           calcDataListCost(timeMap, dataListSemiLong, (x, y, z) => {
-            val std = stdMap.get(makeRaceIdSoft(x))
+            val std = stdMap.get(makeRaceIdSoft(x)).map(_._1)
             if (std.isEmpty)
               (0, 0.0)
             else
@@ -128,7 +125,7 @@ object Main {
 
         val (scoresLong, _, _) =
           calcDataListCost(timeMap, dataListLong, (x, y, z) => {
-            val std = stdMap.get(makeRaceIdSoft(x))
+            val std = stdMap.get(makeRaceIdSoft(x)).map(_._1)
             if (std.isEmpty)
               (0, 0.0)
             else
@@ -140,10 +137,43 @@ object Main {
         val stdSemiLong = calcStd(scoresSemiLong, head)
         val stdLong = calcStd(scoresLong, head)
 
-        PredictData(umaId = umaId, DenseVector(stdShort, stdMiddle, stdSemiLong, stdLong))
-    }
+        PredictData(umaId = umaId, data = head, DenseVector(stdShort, stdMiddle, stdSemiLong, stdLong))
+    }.toList
 
-    println(stdList)
+    val coefficient: Gene = DenseMatrix.rand[Double](NUM_OF_DISTANCE_TYPE, NUM_OF_RACE_TYPE)
+    val momentum: Gene = DenseMatrix.zeros[Double](NUM_OF_DISTANCE_TYPE, NUM_OF_RACE_TYPE)
+
+    val trainSize = (TRAIN_RATE * stdList.length).toInt
+    val shuffledStdList = Random.shuffle(stdList)
+    val trainData = shuffledStdList.slice(0, trainSize)
+    val testData = shuffledStdList.slice(trainSize, stdList.length)
+
+    var shuffledTrainData = Random.shuffle(trainData)
+    var index = 0
+
+    for {
+      i <- 0 until NUM_OF_LEARNING_LOOP
+    } {
+      if (index + BATCH_SIZE > trainData.length) {
+        index = 0
+        shuffledTrainData = Random.shuffle(trainData)
+      }
+
+      val currentData = shuffledTrainData.slice(index, index + BATCH_SIZE)
+
+      val grad = currentData.map { predictData =>
+        println(calcGrad(predictData, coefficient, stdMap))
+
+        //        calcGrad(
+        //          predictData,
+        //          coefficient
+        //        )._2
+        //      }.reduce { (grad1, grad2) =>
+        //        grad1.zip(grad2).map {
+        //          case (x, y) => x + y
+        //        }
+      }
+    }
   }
 
   def findNearest(timeMap: Map[Double, (Double, Double)], vector: DenseVector[Double]): (Double, Double) = {
@@ -193,6 +223,17 @@ object Main {
     (score, out)
   }
 
+  def calcGrad(predictData: PredictData,
+               coefficient: DenseMatrix[Double],
+               stdMap: Map[Double, (Double, Int)],
+               timeMap: Map[Double, (Double, Double)]): Double = {
+    val filter: DenseVector[Double] = makeFilter(predictData.data.x, stdMap)
+    val stdScore: Double = (predictData.std.t * coefficient) * filter
+    val (m, s) = timeMap.getOrElse(makeRaceIdSoft(predictData.data.x), findNearest(timeMap, predictData.data.x))
+    val out = stdScore * s + m
+      out
+  }
+
   def calcDataListCost(timeMap: Map[Double, (Double, Double)],
                        dataList: List[Data],
                        costFunction: (DenseVector[Double], Double, Double) => (Int, Double)) = {
@@ -209,6 +250,13 @@ object Main {
         (newScores, newCount, newCost)
     }
   }
+
+  def makeFilter(vector: DenseVector[Double], stdMap: Map[Double, (Double, Int)]): DenseVector[Double] = {
+    val filter = DenseVector.zeros[Double](NUM_OF_RACE_TYPE)
+    filter(stdMap.get(makeRaceIdSoft(vector)).map(_._2).get) = 1.0
+    filter
+  }
+
 
   def isShort(vector: DenseVector[Double]) =
     vector(3) <= 1400
