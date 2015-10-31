@@ -108,7 +108,7 @@ object Main {
                 x =>
                   printf("%10d, %f, %f\n", x._1.toInt, x._2, (m - x._3) * 10 / s + 50)
               }
-              pw.println(raceId, stdAndOddsHead._1, stdAndOddsHead._2, stdAndOddsScore)
+              pw.println("%10d, %10d, %f, %f".format(raceId.toLong, stdAndOddsHead._1.toLong, stdAndOddsHead._2, stdAndOddsScore))
             }
           }
       }
