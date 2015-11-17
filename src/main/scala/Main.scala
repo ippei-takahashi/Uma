@@ -56,7 +56,7 @@ object Main {
         val stdAndOddsThirdScore = (m - stdAndOddsThird(8)) * 10 / s + 50
 
         raceCount += 1
-        if (stdScore > 70 && oddsScore > 62 && s != 0) {
+        if (stdScore > 70 && oddsScore < 60 && s != 0 && stdHead(3) > 5) {
           over60Count += 1
           if (stdHead(2) == 1.0) {
             oddsCount += stdHead(3)
@@ -67,7 +67,11 @@ object Main {
         }
     }
     val rtn = oddsCount / over60Count
-    println(raceCount, oddsCount / over60WinCount, over60Count, over60WinCount, over60LoseCount, rtn)
+    val p = over60WinCount.toDouble / over60Count.toDouble
+    val r =  oddsCount / over60WinCount - 1.0
+    val kf = ((r + 1) * p - 1) / r
+    val g = Math.pow(Math.pow(1 + r * kf, p) * Math.pow(1 - kf, 1 - p), over60Count)
+    println(raceCount, oddsCount / over60WinCount, over60Count, over60WinCount, over60LoseCount, rtn, kf, g)
   }
 
   def subListBeforeRaceId(raceId: Double, list: List[Data]): List[Data] = list match {
