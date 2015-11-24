@@ -8,7 +8,9 @@ import breeze.stats._
 object Main {
   type Gene = DenseVector[Double]
 
-  case class Data(x: DenseVector[Double], y: Double, z: Double)
+  case class Data(x: DenseVector[Double], time: Double, raceId: Long, babaId: Long)
+
+  private[this] val
 
   def main(args: Array[String]) {
 
@@ -149,6 +151,6 @@ object Main {
       (if (vector1(1) != vector2(1) || vector1(2) != vector2(2)) 1.0 else 0.0) * gene(2)
   }
 
-  def makeRaceIdSoft(vector: DenseVector[Double]): Double =
-    vector(3) * 1000 + vector(1) * 100
+  def makeRaceId(vector: DenseVector[Double], babaId: Long): Long =
+    babaId * 10000 + vector(3).toLong * 10 + vector(1).toLong
 }
