@@ -8,6 +8,8 @@ object Main {
 
   case class Data(x: DenseVector[Double], time: Double, raceId: Long, babaId: Long)
 
+  case class PredictData(rank: Double, odds: Double, prevDataList: Seq[Data])
+
   private[this] val raceIdArray = Array(
     1010000, 2010000, 3010000, 4010000, 5010000, 6010000, 7010000, 8010000, 9010000, 10010000,
     1010001, 2010001, 3010001, 4010001, 5010001, 6010001, 7010001, 8010001, 9010001, 10010001,
@@ -41,7 +43,7 @@ object Main {
     1030001, 2030001, 3030001, 4030001, 5030001, 6030001, 7030001, 8030001, 9030001, 10030001,
     1032001, 2032001, 3032001, 4032001, 5032001, 6032001, 7032001, 8032001, 9032001, 10032001,
     1034001, 2034001, 3034001, 4034001, 5034001, 6034001, 7034001, 8034001, 9034001, 10034001,
-    1036001, 2036001, 3036001, 4036001, 5036001, 6036001, 7036001, 8036001, 9036001
+    1036001, 2036001, 3036001, 4036001, 5036001, 6036001, 7036001, 8036001, 9036001, 10036001
   )
 
   def main(args: Array[String]) {
@@ -58,131 +60,104 @@ object Main {
       array(i) = data(i, ::).t
     }
 
-    val testData = array.groupBy(_ (0)).map {
-      case (id, arr) => id -> arr.map { d =>
+    val dataMap = array.groupBy(_ (0)).map {
+      case (umaId, arr) => umaId -> arr.map { d =>
         val raceId = d(data.cols - 1).toLong
         val babaId = (raceId / 100000) % 1000
         new Data(d(1 until data.cols - 2), d(data.cols - 2), raceId, babaId)
       }.toList.filter {
-        case Data(x, _, _) =>
+        case Data(x, _, _, _) =>
           x(4) == 1.0
       }
     }
 
-    var oddsCount = 0.0
-    var raceCount = 0
-    var over60Count = 0
-    var over60WinCount = 0
-    var over60LoseCount = 0
+    val race: DenseMatrix[Double] = csvread(raceCSV)
+    val raceSize = race.rows
 
-    raceMap.foreach {
-      case (raceId, arr) =>
-        val stdSorted = arr.sortBy(_ (8))
-        val oddsSorted = arr.sortBy(_ (3))
-
-        val m: Double = mean(stdSorted.map(_ (8)))
-        val s: Double = stddev(stdSorted.map(_ (8)))
-
-        val stdAndOdds = stdSorted.slice(0, if (arr.length <= 12) 4 else 5).sortBy(_ (3))
-        val stdAndOddsHead = stdAndOdds.head
-        val stdAndOddsSecond = stdAndOdds(1)
-        val stdAndOddsThird = stdAndOdds(2)
-
-
-        val stdHead = stdSorted.head
-        val oddsHead = oddsSorted.head
-        val oddsSecond = oddsSorted(1)
-
-        val stdScore = (m - stdHead(8)) * 10 / s + 50
-        val oddsScore = (m - oddsHead(8)) * 10 / s + 50
-        val oddsSecondScore = (m - oddsHead(8)) * 10 / s + 50
-        val stdAndOddsHeadScore = (m - stdAndOddsHead(8)) * 10 / s + 50
-        val stdAndOddsSecondScore = (m - stdAndOddsSecond(8)) * 10 / s + 50
-        val stdAndOddsThirdScore = (m - stdAndOddsThird(8)) * 10 / s + 50
-
-        raceCount += 1
-        if (stdScore > 70 && oddsScore < 60 && s != 0 && stdHead(3) > 5) {
-          over60Count += 1
-          if (stdHead(2) == 1.0) {
-            oddsCount += stdHead(3)
-            over60WinCount += 1
-          } else {
-            over60LoseCount += 1
-          }
-        }
+    val raceArray = Array.ofDim[DenseVector[Double]](raceSize)
+    for (i <- 0 until raceSize) {
+      raceArray(i) = race(i, ::).t
     }
-    val rtn = oddsCount / over60Count
-    val p = over60WinCount.toDouble / over60Count.toDouble
-    val r = oddsCount / over60WinCount - 1.0
-    val kf = ((r + 1) * p - 1) / r
-    val g = Math.pow(Math.pow(1 + r * kf, p) * Math.pow(1 - kf, 1 - p), over60Count)
-    println(raceCount, oddsCount / over60WinCount, over60Count, over60WinCount, over60LoseCount, rtn, kf, g)
+
+    val raceMap = raceArray.groupBy(_ (0)).map {
+      case (raceId, arr) => raceId -> (arr match {
+        case validArray if validArray.forall(vec => dataMap.get(vec(2)) match {
+          case Some(races) =>
+            subListBeforeRaceId(raceId.toLong, races).nonEmpty
+          case _ =>
+            false
+        }) =>
+          validArray.map {
+            vec =>
+              val races = dataMap(vec(2))
+              val tail = subListBeforeRaceId(raceId.toLong, races)
+              PredictData(rank = vec(1), odds = vec(3), prevDataList = tail)
+          }
+        case _ => Array[PredictData]()
+      })
+    }.filter {
+      case (raceId, arr) =>
+        arr.nonEmpty
+    }
+
+    //    var oddsCount = 0.0
+    //    var raceCount = 0
+    //    var over60Count = 0
+    //    var over60WinCount = 0
+    //    var over60LoseCount = 0
+    //
+    //    raceMap.foreach {
+    //      case (raceId, arr) =>
+    //        val stdSorted = arr.sortBy(_ (8))
+    //        val oddsSorted = arr.sortBy(_ (3))
+    //
+    //        val m: Double = mean(stdSorted.map(_ (8)))
+    //        val s: Double = stddev(stdSorted.map(_ (8)))
+    //
+    //        val stdAndOdds = stdSorted.slice(0, if (arr.length <= 12) 4 else 5).sortBy(_ (3))
+    //        val stdAndOddsHead = stdAndOdds.head
+    //        val stdAndOddsSecond = stdAndOdds(1)
+    //        val stdAndOddsThird = stdAndOdds(2)
+    //
+    //
+    //        val stdHead = stdSorted.head
+    //        val oddsHead = oddsSorted.head
+    //        val oddsSecond = oddsSorted(1)
+    //
+    //        val stdScore = (m - stdHead(8)) * 10 / s + 50
+    //        val oddsScore = (m - oddsHead(8)) * 10 / s + 50
+    //        val oddsSecondScore = (m - oddsHead(8)) * 10 / s + 50
+    //        val stdAndOddsHeadScore = (m - stdAndOddsHead(8)) * 10 / s + 50
+    //        val stdAndOddsSecondScore = (m - stdAndOddsSecond(8)) * 10 / s + 50
+    //        val stdAndOddsThirdScore = (m - stdAndOddsThird(8)) * 10 / s + 50
+    //
+    //        raceCount += 1
+    //        if (stdScore > 70 && oddsScore < 60 && s != 0 && stdHead(3) > 5) {
+    //          over60Count += 1
+    //          if (stdHead(2) == 1.0) {
+    //            oddsCount += stdHead(3)
+    //            over60WinCount += 1
+    //          } else {
+    //            over60LoseCount += 1
+    //          }
+    //        }
+    //    }
+    //    val rtn = oddsCount / over60Count
+    //    val p = over60WinCount.toDouble / over60Count.toDouble
+    //    val r = oddsCount / over60WinCount - 1.0
+    //    val kf = ((r + 1) * p - 1) / r
+    //    val g = Math.pow(Math.pow(1 + r * kf, p) * Math.pow(1 - kf, 1 - p), over60Count)
+    //    println(raceCount, oddsCount / over60WinCount, over60Count, over60WinCount, over60LoseCount, rtn, kf, g)
   }
 
-  def subListBeforeRaceId(raceId: Double, list: List[Data]): List[Data] = list match {
+  def subListBeforeRaceId(raceId: Long, list: List[Data]): List[Data] = list match {
     case x :: xs if x.raceId == raceId =>
-      x :: xs
+      xs
     case _ :: xs =>
       subListBeforeRaceId(raceId, xs)
     case _ =>
       Nil
   }
-
-  def findNearest(timeMap: Map[Double, (Double, Double)], vector: DenseVector[Double]): (Double, Double) = {
-    val raceId = makeRaceIdSoft(vector)
-    timeMap.minBy {
-      case (idx, value) =>
-        Math.abs(raceId - idx)
-    }._2
-  }
-
-  def prePredict(timeMap: Map[Double, (Double, Double)], stdScore: Double, vector: DenseVector[Double]): Double = {
-    val (m, s) = timeMap.getOrElse(makeRaceIdSoft(vector), findNearest(timeMap, vector))
-    stdScore * s + m
-  }
-
-  def calcStdScore(timeMap: Map[Double, (Double, Double)], d: Data): Double = {
-    val (m, s) = timeMap.getOrElse(makeRaceIdSoft(d.x), findNearest(timeMap, d.x))
-    if (s == 0.0) {
-      0
-    } else {
-      (d.y - m) / s
-    }
-  }
-
-  def predict(prevScores: List[(Double, DenseVector[Double])],
-              timeMap: Map[Double, (Double, Double)],
-              d: Data,
-              gene: Gene): (List[(Double, DenseVector[Double])], Double) = {
-    val score = (calcStdScore(timeMap, d), d.x) :: prevScores
-    val p = prevScores.foldLeft((0.0, 0.0)) {
-      case ((scores, weights), (s, vector)) =>
-        val distInv = 1.0 / vectorDistance(d.x, vector, gene)
-        (scores + s * distInv, weights + distInv)
-    }
-    val out = prePredict(timeMap, if (prevScores.isEmpty) 0.0 else p._1 / p._2, d.x)
-
-    (score, out)
-  }
-
-  def calcDataListCost(timeMap: Map[Double, (Double, Double)],
-                       dataList: List[Data],
-                       costFunction: (DenseVector[Double], Double, Double) => (Int, Double),
-                       gene: Gene) = {
-    dataList.foldLeft((Nil: List[(Double, DenseVector[Double])], 0, 0.0)) {
-      case ((prevScores, prevCount, prevCost), d) =>
-        val (scores, out) = predict(prevScores, timeMap, d, gene)
-        val (count, cost) = costFunction(d.x, d.y, out)
-
-        val newCount = prevCount + count
-        val newCost = prevCost + cost
-
-        val newScores = if (count > 0) scores else prevScores
-
-        (newScores, newCount, newCost)
-    }
-  }
-
 
   def vectorDistance(
                       vector1: DenseVector[Double],
