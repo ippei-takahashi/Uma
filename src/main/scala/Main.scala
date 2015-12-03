@@ -6,48 +6,50 @@ import breeze.stats._
 object Main {
   type Gene = DenseVector[Double]
 
-  case class Data(x: DenseVector[Double], time: Double, raceId: Long, babaId: Long)
+  case class Data(x: DenseVector[Double], time: Double, raceId: Long, raceType: Long)
 
-  case class PredictData(rank: Double, odds: Double, prevDataList: Seq[Data])
+  case class PredictData(raceType: Long, rank: Double, odds: Double, prevDataList: Seq[Data])
 
-  case class CompetitionData(umaData1: CompetitionUmaData, umaData2: CompetitionUmaData)
+  case class CompetitionData(raceType: Long, horseData1: CompetitionHorseData, horseData2: CompetitionHorseData)
 
-  case class CompetitionUmaData(no: Int, score: Option[Double])
+  case class CompetitionHorseData(no: Int, time: Option[Double])
 
-  private[this] val raceIdArray = Array(
-    10000,
-    10001,
-    11500,
-    12000,
-    12001,
-    13000,
-    14000,
-    14001,
-    15000,
-    15001,
-    16000,
-    16001,
-    17000,
-    17001,
-    18000,
-    18001,
-    18700,
-    19000,
-    20000,
-    20001,
-    21000,
-    22001,
-    23000,
-    23001,
-    24000,
-    24001,
-    25000,
-    25001,
-    26001,
-    30001,
-    32001,
-    34001,
-    36001
+  private[this] val DEFAULT_RATE = 1500
+
+  private[this] val raceTypeArray = Array[Long](
+    101000,
+    111000,
+    101150,
+    101200,
+    111200,
+    101300,
+    101400,
+    111400,
+    101500,
+    111500,
+    101600,
+    111600,
+    101700,
+    111700,
+    101800,
+    111800,
+    101870,
+    101900,
+    102000,
+    112000,
+    102100,
+    112200,
+    102300,
+    112300,
+    102400,
+    112400,
+    102500,
+    112500,
+    112600,
+    113000,
+    113200,
+    113400,
+    113600
   )
 
   def main(args: Array[String]) {
@@ -65,10 +67,11 @@ object Main {
     }
 
     val dataMap = array.groupBy(_ (0)).map {
-      case (umaId, arr) => umaId -> arr.map { d =>
+      case (horseId, arr) => horseId -> arr.map { d =>
         val raceId = d(data.cols - 1).toLong
-        val babaId = (raceId / 100000) % 1000
-        new Data(d(1 until data.cols - 2), d(data.cols - 2), raceId, babaId)
+        val x = d(1 until data.cols - 2)
+        val raceType = makeRaceType(x)
+        new Data(x, d(data.cols - 2), raceId, raceType)
       }.toList.filter {
         case Data(x, _, _, _) =>
           x(4) == 1.0
@@ -94,8 +97,8 @@ object Main {
           validArray.map {
             vec =>
               val races = dataMap(vec(2))
-              val tail = subListBeforeRaceId(raceId.toLong, races)
-              PredictData(rank = vec(1), odds = vec(3), prevDataList = tail)
+              val head :: tail = subListBeforeRaceId(raceId.toLong, races)
+              PredictData(raceType = head.raceType, rank = vec(1), odds = vec(3), prevDataList = tail)
           }
         case _ => Array[PredictData]()
       })
@@ -104,71 +107,80 @@ object Main {
         arr.nonEmpty
     }
 
-    raceMap
+    var oddsCount = 0.0
+    var raceCount = 0
+    var betCount = 0
+    var betWinCount = 0
+    var betLoseCount = 0
 
-    //    var oddsCount = 0.0
-    //    var raceCount = 0
-    //    var over60Count = 0
-    //    var over60WinCount = 0
-    //    var over60LoseCount = 0
-    //
-    //    raceMap.foreach {
-    //      case (raceId, arr) =>
-    //        val stdSorted = arr.sortBy(_ (8))
-    //        val oddsSorted = arr.sortBy(_ (3))
-    //
-    //        val m: Double = mean(stdSorted.map(_ (8)))
-    //        val s: Double = stddev(stdSorted.map(_ (8)))
-    //
-    //        val stdAndOdds = stdSorted.slice(0, if (arr.length <= 12) 4 else 5).sortBy(_ (3))
-    //        val stdAndOddsHead = stdAndOdds.head
-    //        val stdAndOddsSecond = stdAndOdds(1)
-    //        val stdAndOddsThird = stdAndOdds(2)
-    //
-    //
-    //        val stdHead = stdSorted.head
-    //        val oddsHead = oddsSorted.head
-    //        val oddsSecond = oddsSorted(1)
-    //
-    //        val stdScore = (m - stdHead(8)) * 10 / s + 50
-    //        val oddsScore = (m - oddsHead(8)) * 10 / s + 50
-    //        val oddsSecondScore = (m - oddsHead(8)) * 10 / s + 50
-    //        val stdAndOddsHeadScore = (m - stdAndOddsHead(8)) * 10 / s + 50
-    //        val stdAndOddsSecondScore = (m - stdAndOddsSecond(8)) * 10 / s + 50
-    //        val stdAndOddsThirdScore = (m - stdAndOddsThird(8)) * 10 / s + 50
-    //
-    //        raceCount += 1
-    //        if (stdScore > 70 && oddsScore < 60 && s != 0 && stdHead(3) > 5) {
-    //          over60Count += 1
-    //          if (stdHead(2) == 1.0) {
-    //            oddsCount += stdHead(3)
-    //            over60WinCount += 1
-    //          } else {
-    //            over60LoseCount += 1
-    //          }
-    //        }
-    //    }
-    //    val rtn = oddsCount / over60Count
-    //    val p = over60WinCount.toDouble / over60Count.toDouble
-    //    val r = oddsCount / over60WinCount - 1.0
-    //    val kf = ((r + 1) * p - 1) / r
-    //    val g = Math.pow(Math.pow(1 + r * kf, p) * Math.pow(1 - kf, 1 - p), over60Count)
-    //    println(raceCount, oddsCount / over60WinCount, over60Count, over60WinCount, over60LoseCount, rtn, kf, g)
+    raceMap.foreach {
+      case (raceId, horses) =>
+        val allCompetitions = makeAllCompetitions(horses)
+        val ratings = horses.map(_ => DEFAULT_RATE)
+        val raceType = horses.head.raceType
+
+        val sortedCompetitions = allCompetitions.sortBy(competitionData => -Math.abs(competitionData.raceType - raceType))
+
+        sortedCompetitions.groupBy(_.raceType).foreach {
+          case (_, seq) =>
+            val ratingUpdates = horses.map(_ => 0)
+            seq.foreach {
+              case CompetitionData(_, CompetitionHorseData(no1, Some(time1)), CompetitionHorseData(no2, Some(time2))) =>
+                if (time1 < time2) {
+                  ratingUpdates(no1) += 50
+                  ratingUpdates(no2) -= 50 // TODO: 重み付け
+                } else if (time1 > time2) {
+                  ratingUpdates(no1) -= 50
+                  ratingUpdates(no2) += 50 // TODO: 重み付け
+                }
+              case _ =>
+            }
+            ratings.indices.foreach {
+              case index =>
+                ratings(index) += ratingUpdates(index)
+            }
+        }
+
+        raceCount += 1
+        if (ratings.sortBy(-_).head > 2000) {
+          betCount += 1 // TODO: bet条件
+
+          val ratingTopIndex = ratings.zipWithIndex.maxBy(_._1)._2
+          val ratingTop = horses(ratingTopIndex)
+          if (ratingTop.rank == 1.0) {
+            oddsCount += ratingTop.odds
+            betWinCount += 1
+          } else {
+            betLoseCount += 1
+          }
+        }
+    }
+
+    val rtn = oddsCount / betCount
+    val p = betWinCount.toDouble / betCount.toDouble
+    val r = oddsCount / betWinCount - 1.0
+    val kf = ((r + 1) * p - 1) / r
+    val g = Math.pow(Math.pow(1 + r * kf, p) * Math.pow(1 - kf, 1 - p), betCount)
+    println(raceCount, oddsCount / betWinCount, betCount, betWinCount, betLoseCount, rtn, kf, g)
   }
 
-  def makeAllCompetition(races: Array[PredictData]): Array[CompetitionData] =
+  def makeAllCompetitions(horses: Array[PredictData]): Array[CompetitionData] =
     for {
-      raceId <- raceIdArray
-      i <- races.indices
-      j <- i until races.length
+      raceType <- raceTypeArray
+      i <- 0 until (horses.length - 1)
+      j <- (i + 1) until horses.length
     } yield {
-      val umaData1 = i -> races(i)
+      val horseData1 = CompetitionHorseData(i,
+        horses(i).prevDataList.filter(_.raceType == raceType).map(_.time).sorted.headOption)
+      val horseData2 = CompetitionHorseData(j,
+        horses(j).prevDataList.filter(_.raceType == raceType).map(_.time).sorted.headOption)
+      CompetitionData(raceType, horseData1, horseData2)
     }
 
 
   def subListBeforeRaceId(raceId: Long, list: List[Data]): List[Data] = list match {
     case x :: xs if x.raceId == raceId =>
-      xs
+      x :: xs
     case _ :: xs =>
       subListBeforeRaceId(raceId, xs)
     case _ =>
@@ -185,6 +197,6 @@ object Main {
       (if (vector1(1) != vector2(1) || vector1(2) != vector2(2)) 1.0 else 0.0) * gene(2)
   }
 
-  def makeRaceId(vector: DenseVector[Double], babaId: Long): Long =
-    babaId * 100000 + vector(3).toLong * 10 + vector(1).toLong
+  def makeRaceType(vector: DenseVector[Double]): Long =
+    100000 + vector(1).toLong * 10000 + vector(3).toLong
 }
