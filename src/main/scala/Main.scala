@@ -12,7 +12,7 @@ object Main {
 
   case class CompetitionData(raceType: Long, horseData1: CompetitionHorseData, horseData2: CompetitionHorseData)
 
-  case class CompetitionHorseData(no: Int, time: Option[Double])
+  case class CompetitionHorseData(no: Int, time: Double)
 
   private[this] val DEFAULT_RATE = 1500.0
 
@@ -133,10 +133,11 @@ object Main {
           case (thisRaceType, seq) =>
             val ratingUpdates = horses.map(_ => 0.0)
             seq.foreach {
-              case CompetitionData(_, CompetitionHorseData(no1, Some(time1)), CompetitionHorseData(no2, Some(time2))) =>
-                val e1 = 1.0 / (1.0 + Math.pow(10.0, ratings(no2) - ratings(no1)) / 400.0)
-                val e2 = 1.0 / (1.0 + Math.pow(10.0, ratings(no1) - ratings(no2)) / 400.0)
-                val k = 16
+              case CompetitionData(_, CompetitionHorseData(no1, time1), CompetitionHorseData(no2, time2)) =>
+                val e1 = 1.0 / (1.0 + Math.pow(10.0, (ratings(no2) - ratings(no1)) / 400.0))
+                val e2 = 1.0 / (1.0 + Math.pow(10.0, (ratings(no1) - ratings(no2)) / 400.0))
+                val k = Math.max(4, 16 - Math.abs(thisRaceType - raceType) / 50)
+                //val k = 16
                 if (time1 < time2) {
                   ratingUpdates(no1) += k * (1.0 - e1)
                   ratingUpdates(no2) -= k * e2
@@ -164,14 +165,34 @@ object Main {
         val headScore = (head - m) * 10 / s + 50
         val secondScore = (second - m) * 10 / s + 50
 
-        if (allCompetitions.count {
-          competitionData =>
-            competitionData.horseData1.time.isDefined && competitionData.horseData2.time.isDefined
-        } > 50 && head - second > 50) {
+        val ratingTopIndex = ratings.zipWithIndex.maxBy(_._1)._2
+        val ratingSecondIndex = ratings.zipWithIndex.filter(_._2 != ratingTopIndex).maxBy(_._1)._2
+        val oddsTopIndex = horses.zipWithIndex.minBy(_._1.odds)._2
+        val ratingTop = horses(ratingTopIndex)
+
+        val directWin = allCompetitions.map {
+          case CompetitionData(_, CompetitionHorseData(no1, time1), CompetitionHorseData(no2, time2)) =>
+            if (no1 == ratingTopIndex && no2 == ratingSecondIndex)
+              if (time1 < time2) 1 else -1
+            else if (no1 == ratingSecondIndex && no2 == ratingTopIndex)
+              if (time1 < time2) 1 else -1
+            else
+              0
+        }.sum
+
+        val directWinToOdds = allCompetitions.map {
+          case CompetitionData(_, CompetitionHorseData(no1, time1), CompetitionHorseData(no2, time2)) =>
+            if (no1 == ratingTopIndex && no2 == oddsTopIndex)
+              if (time1 < time2) 1 else -1
+            else if (no1 == oddsTopIndex && no2 == ratingTopIndex)
+              if (time1 < time2) 1 else -1
+            else
+              0
+        }.sum
+
+        if (allCompetitions.length > 50 && ratingTop.odds > 1.2 && directWin > 0 && directWinToOdds > 0) {
           betCount += 1
 
-          val ratingTopIndex = ratings.zipWithIndex.maxBy(_._1)._2
-          val ratingTop = horses(ratingTopIndex)
           if (ratingTop.rank == 1.0) {
             oddsCount += ratingTop.odds
             betWinCount += 1
@@ -190,17 +211,17 @@ object Main {
   }
 
   def makeAllCompetitions(horses: Array[PredictData]): Array[CompetitionData] =
-    for {
+    (for {
       raceType <- raceTypeArray
       i <- 0 until (horses.length - 1)
+      time1 <- horses(i).prevDataList.filter(_.raceType == raceType).map(_.time).sorted.headOption.toSeq
       j <- (i + 1) until horses.length
+      time2 <- horses(j).prevDataList.filter(_.raceType == raceType).map(_.time).sorted.headOption.toSeq
     } yield {
-      val horseData1 = CompetitionHorseData(i,
-        horses(i).prevDataList.filter(_.raceType == raceType).map(_.time).sorted.headOption)
-      val horseData2 = CompetitionHorseData(j,
-        horses(j).prevDataList.filter(_.raceType == raceType).map(_.time).sorted.headOption)
+      val horseData1 = CompetitionHorseData(i, time1)
+      val horseData2 = CompetitionHorseData(j, time2)
       CompetitionData(raceType, horseData1, horseData2)
-    }
+    })
 
 
   def subListBeforeRaceId(raceId: Long, list: List[Data]): List[Data] = list match {
