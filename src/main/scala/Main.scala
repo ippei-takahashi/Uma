@@ -8,7 +8,7 @@ object Main {
 
   case class Data(x: DenseVector[Double], time: Double, raceId: Long, raceType: Long)
 
-  case class PredictData(horseId: Double, raceType: Long, rank: Double, odds: Double, prevDataList: Seq[Data])
+  case class PredictData(horseId: Double, raceType: Long, rank: Double, odds: Double, age: Double, prevDataList: Seq[Data])
 
   case class CompetitionData(raceType: Long, horseData1: CompetitionHorseData, horseData2: CompetitionHorseData)
 
@@ -72,10 +72,7 @@ object Main {
         val x = d(1 until data.cols - 2)
         val raceType = makeRaceType(x)
         new Data(x, d(data.cols - 2), raceId, raceType)
-      }.toList.filter {
-        case Data(x, _, _, _) =>
-          x(4) == 1.0
-      }
+      }.toList
     }
 
     val race: DenseMatrix[Double] = csvread(raceCSV)
@@ -98,7 +95,8 @@ object Main {
             vec =>
               val races = dataMap(vec(2))
               val head :: tail = subListBeforeRaceId(raceId.toLong, races)
-              PredictData(horseId = vec(2), raceType = head.raceType, rank = vec(1), odds = vec(3), prevDataList = tail)
+              PredictData(horseId = vec(2), raceType = head.raceType, rank = vec(1), odds = vec(3),
+                age = head.x(0), prevDataList = tail)
           }
         case _ => Array[PredictData]()
       })
@@ -211,17 +209,17 @@ object Main {
   }
 
   def makeAllCompetitions(horses: Array[PredictData]): Array[CompetitionData] =
-    (for {
+    for {
       raceType <- raceTypeArray
       i <- 0 until (horses.length - 1)
-      time1 <- horses(i).prevDataList.filter(_.raceType == raceType).map(_.time).sorted.headOption.toSeq
+      time1 <- horses(i).prevDataList.filter(_.raceType == raceType).filter(horses(i).age - _.x(0) < 25).map(_.time).sorted.headOption.toSeq
       j <- (i + 1) until horses.length
-      time2 <- horses(j).prevDataList.filter(_.raceType == raceType).map(_.time).sorted.headOption.toSeq
+      time2 <- horses(j).prevDataList.filter(_.raceType == raceType).filter(horses(j).age - _.x(0) < 25).map(_.time).sorted.headOption.toSeq
     } yield {
       val horseData1 = CompetitionHorseData(i, time1)
       val horseData2 = CompetitionHorseData(j, time2)
       CompetitionData(raceType, horseData1, horseData2)
-    })
+    }
 
 
   def subListBeforeRaceId(raceId: Long, list: List[Data]): List[Data] = list match {
