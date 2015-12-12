@@ -190,7 +190,7 @@ object Main {
               0
         }.sum
 
-        if (allCompetitions.length > 50 && ratingTop.odds < 1.2 && directWin > 0 && directWinToOdds > 0) {
+        if (allCompetitions.length > 50 && ratingTop.odds > 1.2 && directWin > 0 && directWinToOdds > 0) {
           betCount += 1
 
           if (ratingTop.rank == 1.0) {
