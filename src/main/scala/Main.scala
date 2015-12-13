@@ -9,7 +9,7 @@ object Main {
 
   case class Data(x: DenseVector[Double], time: Double, raceId: Long, raceType: Long)
 
-  case class PredictData(horseId: Double, raceType: Long, rank: Double, odds: Double, prevDataList: Seq[Data])
+  case class PredictData(horseId: Double, raceType: Long, rank: Double, odds: Double, age: Double, prevDataList: Seq[Data])
 
   case class CompetitionData(raceType: Long, horseData1: CompetitionHorseData, horseData2: CompetitionHorseData)
 
@@ -98,7 +98,8 @@ object Main {
           subList match {
             case head :: tail =>
               Some(PredictData(
-                horseId = horseId, raceType = head.raceType, rank = -1, odds = arr2.head(arr2.head.length - 1), prevDataList = tail)
+                horseId = horseId, raceType = head.raceType, rank = -1, odds = arr2.head(arr2.head.length - 1),
+                age = head.x(0), prevDataList = tail)
               )
             case _ =>
               None
@@ -203,9 +204,9 @@ object Main {
     for {
       raceType <- raceTypeArray
       i <- 0 until (horses.length - 1)
-      time1 <- horses(i).prevDataList.filter(_.raceType == raceType).map(_.time).sorted.headOption.toSeq
+      time1 <- horses(i).prevDataList.filter(_.raceType == raceType).filter(horses(i).age - _.x(0) < 37).map(_.time).sorted.headOption.toSeq
       j <- (i + 1) until horses.length
-      time2 <- horses(j).prevDataList.filter(_.raceType == raceType).map(_.time).sorted.headOption.toSeq
+      time2 <- horses(j).prevDataList.filter(_.raceType == raceType).filter(horses(j).age - _.x(0) < 37).map(_.time).sorted.headOption.toSeq
     } yield {
       val horseData1 = CompetitionHorseData(i, time1)
       val horseData2 = CompetitionHorseData(j, time2)
