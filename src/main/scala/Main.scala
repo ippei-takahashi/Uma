@@ -8,7 +8,7 @@ object Main {
 
   case class Data(x: DenseVector[Double], time: Double, raceId: Long, raceType: Long)
 
-  case class PredictData(horseId: Double, raceType: Long, rank: Double, odds: Double, age: Double, prevDataList: Seq[Data])
+  case class PredictData(horseId: Double, raceType: Long, rank: Double, odds: Double, oddsFuku: Double,age: Double, prevDataList: Seq[Data])
 
   case class CompetitionData(raceType: Long, horseData1: CompetitionHorseData, horseData2: CompetitionHorseData)
 
@@ -95,7 +95,7 @@ object Main {
             vec =>
               val races = dataMap(vec(2))
               val head :: tail = subListBeforeRaceId(raceId.toLong, races)
-              PredictData(horseId = vec(2), raceType = head.raceType, rank = vec(1), odds = vec(3),
+              PredictData(horseId = vec(2), raceType = head.raceType, rank = vec(1), odds = vec(3), oddsFuku = vec(5),
                 age = head.x(0), prevDataList = tail)
           }
         case _ => Array[PredictData]()
@@ -191,8 +191,8 @@ object Main {
         if (allCompetitions.length > 50 && ratingTop.odds > 1.2 && directWin > 0 && directWinToOdds > 0) {
           betCount += 1
 
-          if (ratingTop.rank == 1.0) {
-            oddsCount += ratingTop.odds
+          if (ratingTop.rank <= 2.0 || horses.length >= 8 && ratingTop.rank <= 3.0) {
+            oddsCount += ratingTop.oddsFuku
             betWinCount += 1
           } else {
             betLoseCount += 1
