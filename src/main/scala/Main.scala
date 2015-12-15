@@ -111,28 +111,30 @@ object Main {
 
           val sortedCompetitions = allCompetitions.sortBy(competitionData => -Math.abs(competitionData.raceType - raceType))
 
-          sortedCompetitions.groupBy(_.raceType).foreach {
-            case (thisRaceType, seq) =>
-              val ratingUpdates = horses.map(_ => 0.0)
-              seq.foreach {
-                case CompetitionData(_, CompetitionHorseData(no1, time1), CompetitionHorseData(no2, time2)) =>
-                  val e1 = 1.0 / (1.0 + Math.pow(10.0, (ratings(no2) - ratings(no1)) / 400.0))
-                  val e2 = 1.0 / (1.0 + Math.pow(10.0, (ratings(no1) - ratings(no2)) / 400.0))
-                  val k = Math.max(4, 16 - Math.abs(thisRaceType - raceType) / 50)
-                  //val k = 16
-                  if (time1 < time2) {
-                    ratingUpdates(no1) += k * (1.0 - e1)
-                    ratingUpdates(no2) -= k * e2
-                  } else if (time1 > time2) {
-                    ratingUpdates(no1) -= k * e1
-                    ratingUpdates(no2) += k * (1.0 - e2)
-                  }
-                case _ =>
-              }
-              ratings.indices.foreach {
-                case index =>
-                  ratings(index) += ratingUpdates(index)
-              }
+          for (i <- 0 until 10) {
+            sortedCompetitions.groupBy(_.raceType).foreach {
+              case (thisRaceType, seq) =>
+                val ratingUpdates = horses.map(_ => 0.0)
+                seq.foreach {
+                  case CompetitionData(_, CompetitionHorseData(no1, time1), CompetitionHorseData(no2, time2)) =>
+                    val e1 = 1.0 / (1.0 + Math.pow(10.0, (ratings(no2) - ratings(no1)) / 400.0))
+                    val e2 = 1.0 / (1.0 + Math.pow(10.0, (ratings(no1) - ratings(no2)) / 400.0))
+                    val k = Math.max(4, 32 - Math.abs(thisRaceType - raceType) / 25)
+                    //val k = 16
+                    if (time1 < time2) {
+                      ratingUpdates(no1) += k * (1.0 - e1)
+                      ratingUpdates(no2) -= k * e2
+                    } else if (time1 > time2) {
+                      ratingUpdates(no1) -= k * e1
+                      ratingUpdates(no2) += k * (1.0 - e2)
+                    }
+                  case _ =>
+                }
+                ratings.indices.foreach {
+                  case index =>
+                    ratings(index) += ratingUpdates(index)
+                }
+            }
           }
 
           val sortedRatings = ratings.sortBy(-_)
