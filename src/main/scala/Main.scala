@@ -72,10 +72,7 @@ object Main {
         val x = d(1 until data.cols - 2)
         val raceType = makeRaceType(x)
         new Data(x, d(data.cols - 2), raceId, raceType)
-      }.toList.filter {
-        case Data(x, _, _, _) =>
-          x(4) == 1.0
-      }
+      }.toList
     }
 
     val race: DenseMatrix[Double] = csvread(raceCSV)
