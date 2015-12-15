@@ -66,15 +66,6 @@ object Main {
       array(i) = data(i, ::).t
     }
 
-    val dataMap = array.groupBy(_ (0)).map {
-      case (horseId, arr) => horseId -> arr.map { d =>
-        val raceId = d(data.cols - 1).toLong
-        val x = d(1 until data.cols - 2)
-        val raceType = makeRaceType(x)
-        new Data(x, d(data.cols - 2), raceId, raceType)
-      }.toList
-    }
-
     val race: DenseMatrix[Double] = csvread(raceCSV)
     val raceSize = race.rows
 
@@ -86,13 +77,12 @@ object Main {
     val raceMap = array.groupBy(_ (0)).map {
       case (raceId, arr) => raceId -> arr.groupBy(_ (1)).map {
         case (horseId, arr2) =>
-          val races = arr2.filter(x => x(10) == 1.0).map { d =>
+          val races = arr2.map { d =>
             val x = d(2 until data.cols - 2)
             val raceType = makeRaceType(x)
-            new Data(x, d(data.cols - 2), d(0).toLong, raceType)
+            new Data(x, d(data.cols - 2), raceId.toLong, raceType)
           }.toList
-          val subList = subListBeforeRaceId(raceId.toLong, races)
-          subList match {
+          races match {
             case head :: tail =>
               Some(PredictData(
                 horseId = horseId, raceType = head.raceType, rank = -1, odds = arr2.head(arr2.head.length - 1),
@@ -209,16 +199,6 @@ object Main {
       val horseData2 = CompetitionHorseData(j, time2)
       CompetitionData(raceType, horseData1, horseData2)
     }
-
-
-  def subListBeforeRaceId(raceId: Long, list: List[Data]): List[Data] = list match {
-    case x :: xs if x.raceId == raceId =>
-      x :: xs
-    case _ :: xs =>
-      subListBeforeRaceId(raceId, xs)
-    case _ =>
-      Nil
-  }
 
   def makeRaceType(vector: DenseVector[Double]): Long =
     100000 + vector(1).toLong * 10000 + vector(3).toLong
