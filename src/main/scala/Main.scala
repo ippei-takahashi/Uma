@@ -166,7 +166,7 @@ object Main {
               if (no1 == ratingTopIndex && no2 == ratingSecondIndex)
                 if (time1 < time2) 1 else -1
               else if (no1 == ratingSecondIndex && no2 == ratingTopIndex)
-                if (time1 < time2) 1 else -1
+                if (time1 > time2) 1 else -1
               else
                 0
           }.sum
@@ -176,7 +176,7 @@ object Main {
               if (no1 == ratingTopIndex && no2 == oddsTopIndex)
                 if (time1 < time2) 1 else -1
               else if (no1 == oddsTopIndex && no2 == ratingTopIndex)
-                if (time1 < time2) 1 else -1
+                if (time1 > time2) 1 else -1
               else
                 0
           }.sum
@@ -204,9 +204,9 @@ object Main {
     for {
       raceType <- raceTypeArray
       i <- 0 until (horses.length - 1)
-      time1 <- horses(i).prevDataList.filter(_.raceType == raceType).filter(horses(i).age - _.x(0) < 100).map(_.time).sorted.headOption.toSeq
+      time1 <- horses(i).prevDataList.filter(_.raceType == raceType).filter(horses(i).age - _.x(0) < 25).map(_.time).sorted.headOption.toSeq
       j <- (i + 1) until horses.length
-      time2 <- horses(j).prevDataList.filter(_.raceType == raceType).filter(horses(j).age - _.x(0) < 100).map(_.time).sorted.headOption.toSeq
+      time2 <- horses(j).prevDataList.filter(_.raceType == raceType).filter(horses(j).age - _.x(0) < 25).map(_.time).sorted.headOption.toSeq
     } yield {
       val horseData1 = CompetitionHorseData(i, time1)
       val horseData2 = CompetitionHorseData(j, time2)
