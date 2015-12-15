@@ -148,6 +148,9 @@ object Main {
           val ratingTopIndex = ratings.zipWithIndex.maxBy(_._1)._2
           val ratingSecondIndex = ratings.zipWithIndex.filter(_._2 != ratingTopIndex).maxBy(_._1)._2
           val oddsTopIndex = horses.zipWithIndex.minBy(_._1.odds)._2
+          val oddsSecondTopIndex = horses.zipWithIndex.filter(_._2 != oddsTopIndex).minBy(_._1.odds)._2
+          val oddsThirdTopIndex = horses.zipWithIndex.filter(_._2 != oddsTopIndex).filter(_._2 != oddsSecondTopIndex).minBy(_._1.odds)._2
+
           val ratingTop = horses(ratingTopIndex)
 
           val directWin = allCompetitions.map {
@@ -170,7 +173,28 @@ object Main {
                 0
           }.sum
 
-          if (allCompetitions.length > 50 && ratingTop.odds > 1.2 && directWin > 0 && directWinToOdds > 0) {
+          val directWinToOddsSecond = allCompetitions.map {
+            case CompetitionData(_, CompetitionHorseData(no1, time1), CompetitionHorseData(no2, time2)) =>
+              if (no1 == ratingTopIndex && no2 == oddsSecondTopIndex)
+                if (time1 < time2) 1 else -1
+              else if (no1 == oddsSecondTopIndex && no2 == ratingTopIndex)
+                if (time1 > time2) 1 else -1
+              else
+                0
+          }.sum
+
+          val directWinToOddsThird = allCompetitions.map {
+            case CompetitionData(_, CompetitionHorseData(no1, time1), CompetitionHorseData(no2, time2)) =>
+              if (no1 == ratingTopIndex && no2 == oddsThirdTopIndex)
+                if (time1 < time2) 1 else -1
+              else if (no1 == oddsThirdTopIndex && no2 == ratingTopIndex)
+                if (time1 > time2) 1 else -1
+              else
+                0
+          }.sum
+
+          if (allCompetitions.length > 50 && ratingTop.odds > 1.2 && directWin > 0 && directWinToOdds > 0 &&
+            directWinToOddsSecond > 0 && directWinToOddsThird > 0) {
             println("%10d, %f, %10d".format(raceId.toLong, ratingTop.odds, ratingTop.horseId.toLong))
             for {
               res <- ratings.zip(horses).sortBy(_._1)
