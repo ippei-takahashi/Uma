@@ -175,7 +175,7 @@ object Main {
             if (no1 == ratingTopIndex && no2 == ratingSecondIndex)
               if (time1 < time2) 1 else -1
             else if (no1 == ratingSecondIndex && no2 == ratingTopIndex)
-              if (time1 < time2) 1 else -1
+              if (time1 > time2) 1 else -1
             else
               0
         }.sum
@@ -185,7 +185,7 @@ object Main {
             if (no1 == ratingTopIndex && no2 == oddsTopIndex)
               if (time1 < time2) 1 else -1
             else if (no1 == oddsTopIndex && no2 == ratingTopIndex)
-              if (time1 < time2) 1 else -1
+              if (time1 > time2) 1 else -1
             else
               0
         }.sum
