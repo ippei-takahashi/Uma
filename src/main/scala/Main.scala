@@ -7,9 +7,9 @@ import breeze.stats._
 
 object Main {
 
-  case class Data(x: DenseVector[Double], time: Double, raceId: Long, raceType: Long)
+  case class Data(x: DenseVector[Double], time: Double, raceId: Long, raceType: Long, isGoodBaba: Boolean)
 
-  case class PredictData(horseId: Double, raceType: Long, rank: Double, odds: Double, age: Double, prevDataList: Seq[Data])
+  case class PredictData(horseId: Double, raceType: Long, rank: Double, odds: Double, age: Double, isGoodBaba: Boolean, prevDataList: Seq[Data])
 
   case class CompetitionData(raceType: Long, horseData1: CompetitionHorseData, horseData2: CompetitionHorseData)
 
@@ -80,13 +80,13 @@ object Main {
           val races = arr2.map { d =>
             val x = d(2 until data.cols - 2)
             val raceType = makeRaceType(x)
-            new Data(x, d(data.cols - 2), raceId.toLong, raceType)
+            new Data(x, d(data.cols - 2), raceId.toLong, raceType, isGoodBaba = x(4) + x(5) == 1.0 && x(8) == 1.0)
           }.toList
           races match {
             case head :: tail =>
               Some(PredictData(
                 horseId = horseId, raceType = head.raceType, rank = -1, odds = arr2.head(arr2.head.length - 1),
-                age = head.x(0), prevDataList = tail)
+                age = head.x(0), isGoodBaba = head.isGoodBaba, prevDataList = tail)
               )
             case _ =>
               None
@@ -194,7 +194,7 @@ object Main {
           }.sum
 
           if (allCompetitions.length > 50 && ratingTop.odds > 1.2 && directWin > 0 && directWinToOdds > 0 &&
-            directWinToOddsSecond > 0 && directWinToOddsThird > 0) {
+            directWinToOddsSecond > 0 && directWinToOddsThird > 0 && ratingTop.isGoodBaba) {
             println("%10d, %f, %10d".format(raceId.toLong, ratingTop.odds, ratingTop.horseId.toLong))
             for {
               res <- ratings.zip(horses).sortBy(_._1)
