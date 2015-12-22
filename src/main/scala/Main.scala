@@ -142,7 +142,7 @@ object Main {
           val ratingTop = ratingInfo.head
           val ratingSecond = ratingInfo(1)
 
-          if (ratingTop._2._2 > 300 && ratingTop._2._1 - ratingSecond._2._1 > 100) {
+          if (ratingTop._2._2 > 300 && ratingTop._2._1 - ratingSecond._2._1 > 0) {
             pw.println("%10d, %f, %10d".format(raceId.toLong, ratingTop._1.odds, ratingTop._1.horseId))
             println("%10d, %f, %10d".format(raceId.toLong, ratingTop._1.odds, ratingTop._1.horseId))
             for {
