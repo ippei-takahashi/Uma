@@ -6,7 +6,7 @@ import breeze.stats._
 object Main {
   type Gene = DenseVector[Double]
 
-  case class Data(x: DenseVector[Double], time: Double, raceId: Long, raceType: Long, isGoodBaba: Boolean)
+  case class Data(x: DenseVector[Double], time: Double, raceId: Long, raceType: Long, isGoodBaba: Boolean, rank: Option[Int] = None)
 
   case class PredictData(horseId: Int, raceType: Long, rank: Int, odds: Double, oddsFuku: Double, age: Double,
                          isGoodBaba: Boolean, prevDataList: Seq[Data])
@@ -99,7 +99,7 @@ object Main {
       raceArray(i) = race(i, ::).t
     }
 
-    val raceMap = raceArray.groupBy(_ (0)).map {
+    val raceMap_ = raceArray.groupBy(_ (0)).map {
       case (raceId, arr) => raceId -> (arr match {
         case validArray if validArray.forall(vec => dataMap.get(vec(2)) match {
           case Some(races) =>
@@ -122,12 +122,27 @@ object Main {
     }.map {
       case (raceId, arr) =>
         raceId -> arr.sortBy(_.rank)
-    }.toSeq.sortBy(_._1)
+    }
+    val raceSeq_ = raceMap_.toSeq.sortBy(_._1)
+
+    val raceSeq = raceSeq_.map {
+      case (raceId, arr) =>
+        raceId -> arr.map {
+          pred =>
+            pred.copy(prevDataList = pred.prevDataList.map {
+              prevData =>
+                prevData.copy(rank = raceMap_.get(prevData.raceId).flatMap {
+                  _.find(_.horseId == pred.horseId)
+                }.map(_.rank))
+            })
+        }
+    }
 
     var oddsCount = 0.0
     var raceCount = 0
     var betCount = 0
     var betWinCount = 0
+    val analyzeArray = Array.ofDim[Int](20)
 
     Seq(500000000,
       600000000,
@@ -140,7 +155,7 @@ object Main {
       1300000000).foreach {
       num =>
         for (loop <- 0 until 10) {
-          raceMap.filter {
+          raceSeq.filter {
             case (raceId, _) =>
               raceId >= num & raceId < num + 100000000
           }.foreach {
@@ -176,64 +191,121 @@ object Main {
           }
         }
 
-        raceMap.filter {
+        raceSeq.filter {
           case (raceId, arr) =>
             raceId >= num + 100000000 && raceId < num + 200000000 && (raceId % 100000) < 20000 && arr.head.isGoodBaba
         }.foreach {
           case (raceId, horses) =>
-            val allCompetitions = makeAllCompetitions(horses)
+            //            val allCompetitions = makeAllCompetitions(horses)
             val raceType = horses.head.raceType
 
-            val sortedCompetitions = allCompetitions.sortBy(competitionData => -Math.abs(competitionData.raceType - raceType))
+            //            val sortedCompetitions = allCompetitions.sortBy(competitionData => -Math.abs(competitionData.raceType - raceType))
 
             val ratingMap = getRatingMap(raceType)
             val ratingInfo = horses.map {
               horse =>
                 horse -> ratingMap.getOrElse(horse.horseId, (DEFAULT_RATE, 0))
             }
-            val ratings = ratingInfo.map(_._2._1)
-
-            sortedCompetitions.groupBy(_.raceType).foreach {
-              case (thisRaceType, seq) =>
-                val ratingUpdates = horses.map(_ => 0.0)
-                seq.foreach {
-                  case CompetitionData(_, CompetitionHorseData(no1, time1), CompetitionHorseData(no2, time2)) =>
-                    val e1 = 1.0 / (1.0 + Math.pow(10.0, (ratings(no2) - ratings(no1)) / 400.0))
-                    val e2 = 1.0 / (1.0 + Math.pow(10.0, (ratings(no1) - ratings(no2)) / 400.0))
-                    val k = Math.max(4, 16 - Math.abs(thisRaceType - raceType) / 50)
-                    //val k = 16
-                    if (time1 < time2) {
-                      ratingUpdates(no1) += k * (1.0 - e1)
-                      ratingUpdates(no2) -= k * e2
-                    } else if (time1 > time2) {
-                      ratingUpdates(no1) -= k * e1
-                      ratingUpdates(no2) += k * (1.0 - e2)
-                    }
-                  case _ =>
-                }
-                ratings.indices.foreach {
-                  case index =>
-                    ratings(index) += ratingUpdates(index)
-                }
+            //            val ratings = ratingInfo.map(_._2._1)
+            //
+            //            sortedCompetitions.groupBy(_.raceType).foreach {
+            //              case (thisRaceType, seq) =>
+            //                val ratingUpdates = horses.map(_ => 0.0)
+            //                seq.foreach {
+            //                  case CompetitionData(_, CompetitionHorseData(no1, time1), CompetitionHorseData(no2, time2)) =>
+            //                    val e1 = 1.0 / (1.0 + Math.pow(10.0, (ratings(no2) - ratings(no1)) / 400.0))
+            //                    val e2 = 1.0 / (1.0 + Math.pow(10.0, (ratings(no1) - ratings(no2)) / 400.0))
+            //                    val k = Math.max(4, 16 - Math.abs(thisRaceType - raceType) / 50)
+            //                    //val k = 16
+            //                    if (time1 < time2) {
+            //                      ratingUpdates(no1) += k * (1.0 - e1)
+            //                      ratingUpdates(no2) -= k * e2
+            //                    } else if (time1 > time2) {
+            //                      ratingUpdates(no1) -= k * e1
+            //                      ratingUpdates(no2) += k * (1.0 - e2)
+            //                    }
+            //                  case _ =>
+            //                }
+            //                ratings.indices.foreach {
+            //                  case index =>
+            //                    ratings(index) += ratingUpdates(index)
+            //                }
+            //            }
+            val newRatingInfo = ratingInfo.sortBy(-_._2._1).zipWithIndex.map {
+              case ((horse, (rating, ratingCount)), index) =>
+                (horse, rating, ratingCount, index)
             }
-            val newRatingInfo = ratingInfo.zip(ratings).map {
-              case ((horse, (_, ratingCount)), rating) =>
-                (horse, rating, ratingCount)
-            }.sortBy(-_._2)
+
+            val newRatingInfoOdds = ratingInfo.sortBy(_._1.odds).zipWithIndex.map {
+              case ((horse, (rating, ratingCount)), index) =>
+                (horse, rating, ratingCount, index)
+            }
+
+            val newRatingInfoTime = ratingInfo.sortBy(
+              _._1.prevDataList.filter(_.raceType == raceType).map(_.time).sorted.headOption.getOrElse(Double.MaxValue)
+            ).zipWithIndex.map {
+              case ((horse, (rating, ratingCount)), index) =>
+                (horse, rating, ratingCount, index)
+            }
+
+            val newRatingInfoScore = newRatingInfo.map {
+              case (horse, rating, ratingCount, _) =>
+                val indexTime = newRatingInfoTime.find(_._1.horseId == horse.horseId).get._4
+                val score = rating + (indexTime match {
+                  case 0 => 400
+                  case 1 => 350
+                  case 2 => 250
+                  case 3 => 200
+                  case 4 => 200
+                  case _ => 0
+                }) + horse.prevDataList.take(10).map {
+                  prevData =>
+                    prevData.rank match {
+                      case Some(1) if prevData.raceType == raceType =>
+                        100
+                      case Some(1) =>
+                        30
+                      case Some(n) if n <= 3 && prevData.raceType == raceType =>
+                        50
+                      case Some(n) if n <= 3 =>
+                        10
+                      case Some(_) if prevData.raceType == raceType  =>
+                        -15
+                      case Some(_) =>
+                        -5
+                      case _ =>
+                        0
+                    }
+                }.sum
+                (horse, score, ratingCount)
+            }.sortBy(-_._2).zipWithIndex.map {
+              case ((horse, rating, ratingCount), index) =>
+                (horse, rating, ratingCount, index)
+            }
 
             val ratingTop = newRatingInfo.head
             val ratingSecond = newRatingInfo(1)
 
             raceCount += 1
+
+            val oddsTop = newRatingInfo.sortBy(_._1.odds).head
             val ratingOddsRatio = ratingTop._1.odds *
               (1 / (1.0 + Math.pow(10.0, (ratingSecond._2 - ratingTop._2) / 400.0)) - 0.5)
-            if (ratingTop._3 > 100 && ratingTop._2 - ratingSecond._2 > 0 && ratingTop._1.odds > 3 &&
-              ratingTop._1.odds < 20 && ratingOddsRatio > 0.4) {
+            if (oddsTop._3 > 100 && ratingTop._2 - oddsTop._2 < 50) {
               betCount += 1
-              if (ratingTop._1.rank == 1) {
+              if (oddsTop._1.rank == 1) {
                 betWinCount += 1
-                oddsCount += ratingTop._1.odds
+                oddsCount += oddsTop._1.odds
               }
+            }
+
+            val top = newRatingInfo.sortBy(_._1.rank).head
+            val topOdds = newRatingInfoOdds.sortBy(_._1.rank).head
+            val topTime = newRatingInfoTime.sortBy(_._1.rank).head
+            val topScore = newRatingInfoScore.sortBy(_._1.rank).head
+
+            if (topScore._3 > 0) {
+              analyzeArray(topScore._4) += 1
             }
         }
     }
@@ -244,6 +316,7 @@ object Main {
     val r = oddsCount / betWinCount - 1.0
     val kf = ((r + 1) * p - 1) / r
     val g = Math.pow(Math.pow(1 + r * kf, p) * Math.pow(1 - kf, 1 - p), betCount)
+    println(analyzeArray.toSeq)
     println(raceCount, oddsCount / betWinCount, betCount, betWinCount, betWinCount.toDouble / betCount.toDouble, rtn, kf, g)
   }
 
