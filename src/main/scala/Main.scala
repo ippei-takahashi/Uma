@@ -288,14 +288,15 @@ object Main {
 
             raceCount += 1
 
-            val oddsTop = newRatingInfo.sortBy(_._1.odds).head
-            val ratingOddsRatio = ratingTop._1.odds *
-              (1 / (1.0 + Math.pow(10.0, (ratingSecond._2 - ratingTop._2) / 400.0)) - 0.5)
-            if (oddsTop._3 > 100 && ratingTop._2 - oddsTop._2 < 50) {
+            val sortedScores = newRatingInfoScore.sortBy(-_._2)
+            val scoreDiff = sortedScores.head._2 - sortedScores(1)._2
+            val predictOdds = (1 + Math.pow(10, -scoreDiff / 400)) * 6
+
+            if (sortedScores.head._3 > 100 && predictOdds < sortedScores.head._1.odds) {
               betCount += 1
-              if (oddsTop._1.rank == 1) {
+              if (sortedScores.head._1.rank == 1) {
                 betWinCount += 1
-                oddsCount += oddsTop._1.odds
+                oddsCount += sortedScores.head._1.odds
               }
             }
 
