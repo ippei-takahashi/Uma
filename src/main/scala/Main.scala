@@ -234,32 +234,15 @@ object Main {
           val newRatingInfoScore = newRatingInfo.map {
             case (horse, rating, ratingCount, _) =>
               val indexTime = newRatingInfoTime.find(_._1.horseId == horse.horseId).get._4
-              val score = rating + (indexTime match {
-                case 0 => 400
-                case 1 => 350
-                case 2 => 250
-                case 3 => 200
-                case 4 => 200
-                case _ => 0
-              }) + horse.prevDataList.take(10).map {
-                prevData =>
-                  prevData.rank match {
-                    case Some(1) if prevData.raceType == raceType =>
-                      50
-                    case Some(1) =>
-                      20
-                    case Some(n) if n <= 3 && prevData.raceType == raceType =>
-                      30
-                    case Some(n) if n <= 3 =>
-                      10
-                    case Some(_) if prevData.raceType == raceType =>
-                      -10
-                    case Some(_) =>
-                      -3
-                    case _ =>
-                      0
-                  }
-              }.sum
+              val score = rating +
+                (indexTime match {
+                  case 0 => 20
+                  case 1 => 15
+                  case 2 => 10
+                  case 3 => 5
+                  case 4 => 5
+                  case _ => 0
+                })
               (horse, score, ratingCount)
           }.sortBy(-_._2).zipWithIndex.map {
             case ((horse, rating, ratingCount), index) =>
@@ -288,15 +271,6 @@ object Main {
               oddsCount += sortedScores.head._1.oddsFuku
             }
           }
-
-          val top = newRatingInfo.sortBy(_._1.rank).head
-          val topOdds = newRatingInfoOdds.sortBy(_._1.rank).head
-          val topTime = newRatingInfoTime.sortBy(_._1.rank).head
-          val topScore = newRatingInfoScore.sortBy(_._1.rank).head
-
-          if (topScore._3 > 0) {
-            analyzeArray(topScore._4) += 1
-          }
       }
     }
 
@@ -306,7 +280,6 @@ object Main {
     val r = oddsCount / betWinCount - 1.0
     val kf = ((r + 1) * p - 1) / r
     val g = Math.pow(Math.pow(1 + r * kf, p) * Math.pow(1 - kf, 1 - p), betCount)
-    println(analyzeArray.toSeq)
     println(raceCount, oddsCount / betWinCount, betCount, betWinCount, betWinCount.toDouble / betCount.toDouble, rtn, kf, g)
   }
 
