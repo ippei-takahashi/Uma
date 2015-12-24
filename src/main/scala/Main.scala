@@ -273,7 +273,13 @@ object Main {
 
           val sortedScores = newRatingInfoScore.sortBy(-_._2)
           val scoreDiff = sortedScores.head._2 - sortedScores(1)._2
-          val predictOdds = (1 + Math.pow(10, -scoreDiff / 400)) * 10
+          val scoreDiff2 = sortedScores.head._2 - sortedScores(2)._2
+          val scoreDiff3 = sortedScores.head._2 - sortedScores(3)._2
+
+          val predictOdds = (1 + Math.pow(10, -scoreDiff / 400)) *
+            (1 + Math.pow(10, -scoreDiff2 / 400)) *
+            (1 + Math.pow(10, -scoreDiff3 / 400)) *
+            6.5
 
           if (sortedScores.head._3 > 0 && predictOdds < sortedScores.head._1.odds) {
             betCount += 1
