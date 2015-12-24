@@ -204,7 +204,7 @@ object Main {
 
       raceSeq.filter {
         case (raceId, arr) =>
-          ranges(ri + 1)(raceId) && arr.head.isGoodBaba
+          ranges(ri + 1)(raceId)
       }.foreach {
         case (raceId, horses) =>
           val raceType = horses.head.raceType
