@@ -262,17 +262,17 @@ object Main {
                   prevData =>
                     prevData.rank match {
                       case Some(1) if prevData.raceType == raceType =>
-                        100
-                      case Some(1) =>
-                        30
-                      case Some(n) if n <= 3 && prevData.raceType == raceType =>
                         50
+                      case Some(1) =>
+                        20
+                      case Some(n) if n <= 3 && prevData.raceType == raceType =>
+                        30
                       case Some(n) if n <= 3 =>
                         10
                       case Some(_) if prevData.raceType == raceType  =>
-                        -15
+                        -10
                       case Some(_) =>
-                        -5
+                        -3
                       case _ =>
                         0
                     }
