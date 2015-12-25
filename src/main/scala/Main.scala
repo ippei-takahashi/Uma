@@ -219,11 +219,6 @@ object Main {
               (horse, rating, ratingCount, index)
           }
 
-          val newRatingInfoOdds = ratingInfo.sortBy(_._1.odds).zipWithIndex.map {
-            case ((horse, (rating, ratingCount)), index) =>
-              (horse, rating, ratingCount, index)
-          }
-
           val newRatingInfoTime = ratingInfo.sortBy(
             _._1.prevDataList.filter(_.raceType == raceType).map(_.time).sorted.headOption.getOrElse(Double.MaxValue)
           ).zipWithIndex.map {
@@ -249,9 +244,6 @@ object Main {
               (horse, rating, ratingCount, index)
           }
 
-          val ratingTop = newRatingInfo.head
-          val ratingSecond = newRatingInfo(1)
-
           raceCount += 1
 
           val sortedScores = newRatingInfoScore.sortBy(-_._2)
@@ -262,7 +254,7 @@ object Main {
           val predictOdds = (1 + Math.pow(10, -scoreDiff / 400)) *
             (1 + Math.pow(10, -scoreDiff2 / 400)) *
             (1 + Math.pow(10, -scoreDiff3 / 400)) *
-            6.5
+            5.5
 
           if (sortedScores.head._3 > 0 && predictOdds < sortedScores.head._1.odds) {
             betCount += 1
