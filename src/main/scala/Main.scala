@@ -256,12 +256,21 @@ object Main {
             (1 + Math.pow(10, -scoreDiff3 / 400)) *
             5.5
 
-          if (sortedScores.head._3 > 0 && predictOdds < sortedScores.head._1.odds) {
+          val ratingTop = sortedScores.head
+
+          if (ratingTop._3 > 0 && predictOdds < ratingTop._1.odds) {
             betCount += 1
             if (sortedScores.head._1.rank <= 2 || (sortedScores.head._1.rank <= 3 && horses.length >= 8)) {
               betWinCount += 1
               oddsCount += sortedScores.head._1.oddsFuku
             }
+            pw.println("%10d, %f, %10d".format(raceId.toLong, ratingTop._1.odds, ratingTop._1.horseId))
+            for {
+              res <- sortedScores
+            } {
+              pw.println("%f, %d, %10d".format(res._2, res._3, res._1.horseId))
+            }
+            pw.println
           }
       }
     }
