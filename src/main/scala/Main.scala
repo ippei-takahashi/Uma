@@ -259,7 +259,7 @@ object Main {
             val predictOdds = (1 + Math.pow(10, -scoreDiff / 400)) *
               (1 + Math.pow(10, -scoreDiff2 / 400)) *
               (1 + Math.pow(10, -scoreDiff3 / 400)) *
-              5.5
+              6 - 2
 
             val ratingTop = sortedScores.head
 
