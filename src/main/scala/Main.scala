@@ -170,41 +170,39 @@ object Main {
       for {
         ri <- 0 until (ranges.length - 1)
       } {
-        for (loop <- 0 until 10) {
-          raceSeq.filter {
-            case (raceId, _) =>
-              ranges(ri)(raceId)
-          }.foreach {
-            case (raceId, horses) =>
-              val ratingUpdates = horses.map(_ => 0.0)
-              val ratingCountUpdates = horses.map(_ => 0)
+        raceSeq.filter {
+          case (raceId, _) =>
+            ranges(ri)(raceId)
+        }.foreach {
+          case (raceId, horses) =>
+            val ratingUpdates = horses.map(_ => 0.0)
+            val ratingCountUpdates = horses.map(_ => 0)
 
-              val ratingMap = getRatingMap(horses.head.raceType)
-              val (ratings, ratingCounts) = horses.map {
-                horse =>
-                  ratingMap.getOrElse(horse.horseId, (DEFAULT_RATE, 0))
-              }.unzip
+            val ratingMap = getRatingMap(horses.head.raceType)
+            val (ratings, ratingCounts) = horses.map {
+              horse =>
+                ratingMap.getOrElse(horse.horseId, (DEFAULT_RATE, 0))
+            }.unzip
 
-              for {
-                i <- 0 until 3
-                j <- (i + 1) until horses.length
-              } {
-                val e1 = 1.0 / (1.0 + Math.pow(10.0, (ratings(j) - ratings(i)) / 400.0))
-                val e2 = 1.0 / (1.0 + Math.pow(10.0, (ratings(i) - ratings(j)) / 400.0))
-                val k = 16
+            for {
+              i <- 0 until 3
+              j <- (i + 1) until horses.length
+            } {
+              val e1 = 1.0 / (1.0 + Math.pow(10.0, (ratings(j) - ratings(i)) / 400.0))
+              val e2 = 1.0 / (1.0 + Math.pow(10.0, (ratings(i) - ratings(j)) / 400.0))
+              val k = 64
 
-                ratingUpdates(i) += k * (1.0 - e1)
-                ratingUpdates(j) -= k * e2
+              ratingUpdates(i) += k * (1.0 - e1)
+              ratingUpdates(j) -= k * e2
 
-                ratingCountUpdates(i) += 1
-                ratingCountUpdates(j) += 1
-              }
+              ratingCountUpdates(i) += 1
+              ratingCountUpdates(j) += 1
+            }
 
-              horses.zipWithIndex.foreach {
-                case (horse, index) =>
-                  ratingMap.put(horse.horseId, (ratings(index) + ratingUpdates(index), ratingCounts(index) + ratingCountUpdates(index)))
-              }
-          }
+            horses.zipWithIndex.foreach {
+              case (horse, index) =>
+                ratingMap.put(horse.horseId, (ratings(index) + ratingUpdates(index), ratingCounts(index) + ratingCountUpdates(index)))
+            }
         }
 
         raceSeq.filter {
@@ -252,14 +250,14 @@ object Main {
             raceCount += 1
 
             val sortedScores = newRatingInfoScore.sortBy(-_._2)
-            val scoreDiff = sortedScores.head._2 - sortedScores(1)._2
-            val scoreDiff2 = sortedScores.head._2 - sortedScores(2)._2
-            val scoreDiff3 = sortedScores.head._2 - sortedScores(3)._2
 
-            val predictOdds = (1 + Math.pow(10, -scoreDiff / 400)) *
-              (1 + Math.pow(10, -scoreDiff2 / 400)) *
-              (1 + Math.pow(10, -scoreDiff3 / 400)) *
-              6 - 2
+            val scoreDiffs = for {
+              i <- 1 until sortedScores.length
+            } yield sortedScores.head._2 - sortedScores(i)._2
+            val predictOdds = scoreDiffs.foldLeft(1.0) {
+              (x, y) =>
+                x * (1 + Math.pow(10, -y / 400))
+            } * 3 - 1
 
             val ratingTop = sortedScores.head
 
