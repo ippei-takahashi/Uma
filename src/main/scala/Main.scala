@@ -12,15 +12,11 @@ object Main {
 
   private[this] val ratingMapDMiddle = scala.collection.mutable.Map[Int, (Double, Int)]()
 
-  private[this] val ratingMapDSemiLong = scala.collection.mutable.Map[Int, (Double, Int)]()
-
   private[this] val ratingMapDLong = scala.collection.mutable.Map[Int, (Double, Int)]()
 
   private[this] val ratingMapSShort = scala.collection.mutable.Map[Int, (Double, Int)]()
 
   private[this] val ratingMapSMiddle = scala.collection.mutable.Map[Int, (Double, Int)]()
-
-  private[this] val ratingMapSSemiLong = scala.collection.mutable.Map[Int, (Double, Int)]()
 
   private[this] val ratingMapSLong = scala.collection.mutable.Map[Int, (Double, Int)]()
 
@@ -108,11 +104,9 @@ object Main {
     Seq(
       "ratingDShort.csv" -> ratingMapDShort,
       "ratingDMiddle.csv" -> ratingMapDMiddle,
-      "ratingDSemiLong.csv" -> ratingMapDSemiLong,
       "ratingDLong.csv" -> ratingMapDLong,
       "ratingSShort.csv" -> ratingMapSShort,
       "ratingSMiddle.csv" -> ratingMapSMiddle,
-      "ratingSSemiLong.csv" -> ratingMapSSemiLong,
       "ratingSLong.csv" -> ratingMapSLong
     ).foreach {
       case (fileName, ratingMap) =>
@@ -205,18 +199,14 @@ object Main {
     (raceType / 10000, raceType % 10000) match {
       case (10, dist) if dist <= 1200 =>
         ratingMapDShort
-      case (10, dist) if dist <= 1500 =>
+      case (10, dist) if dist <= 1600 =>
         ratingMapDMiddle
-      case (10, dist) if dist <= 1800 =>
-        ratingMapDSemiLong
       case (10, _) =>
         ratingMapDLong
       case (11, dist) if dist <= 1200 =>
         ratingMapSShort
-      case (11, dist) if dist <= 1500 =>
+      case (11, dist) if dist <= 1600 =>
         ratingMapSMiddle
-      case (11, dist) if dist <= 1800 =>
-        ratingMapSSemiLong
       case (11, _) =>
         ratingMapSLong
     }
