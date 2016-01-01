@@ -4,9 +4,9 @@ import breeze.linalg._
 
 object Main {
 
-  case class Data(x: DenseVector[Double], time: Double, raceId: Long, raceType: Long, isGoodBaba: Boolean)
+  case class Data(x: DenseVector[Double], horseNo: Int, time: Double, raceId: Long, raceType: Long, isGoodBaba: Boolean)
 
-  case class PredictData(horseId: Int, raceType: Long, rank: Double, odds: Double, age: Double, isGoodBaba: Boolean, prevDataList: Seq[Data])
+  case class PredictData(horseId: Int, horseNo: Int, raceType: Long, rank: Double, odds: Double, age: Double, isGoodBaba: Boolean, prevDataList: Seq[Data])
 
   private[this] val ratingMapDShort = scala.collection.mutable.Map[Int, (Double, Int)]()
 
@@ -85,13 +85,13 @@ object Main {
           val races = arr2.map { d =>
             val x = d(2 until data.cols - 2)
             val raceType = makeRaceType(x)
-            new Data(x, d(data.cols - 2), raceId.toLong, raceType, isGoodBaba = x(4) + x(5) == 1.0 && x(8) == 1.0)
+            new Data(x, horseNo = d(3).toInt, time = d(data.cols - 2), raceId.toLong, raceType, isGoodBaba = x(9) + x(10) == 1.0 && x(5) == 1.0)
           }.toList
           races match {
             case head :: tail =>
               Some(PredictData(
-                horseId = horseId.toInt, raceType = head.raceType, rank = -1, odds = arr2.head(arr2.head.length - 1),
-                age = head.x(0), isGoodBaba = head.isGoodBaba, prevDataList = tail)
+                horseId = horseId.toInt, horseNo = head.horseNo, raceType = head.raceType, rank = -1,
+                odds = arr2.head(arr2.head.length - 2), age = head.x(0), isGoodBaba = head.isGoodBaba, prevDataList = tail)
               )
             case _ =>
               None
@@ -177,13 +177,13 @@ object Main {
           val ratingTop = sortedScores.head
 
           if (ratingTop._3 > 0 && predictOdds < ratingTop._1.odds) {
-            pw.println("%10d, %f, %10d".format(raceId.toLong, ratingTop._1.odds, ratingTop._1.horseId))
-            println("%10d, %f, %10d".format(raceId.toLong, ratingTop._1.odds, ratingTop._1.horseId))
+            pw.println("%10d, %f, %10d, %d".format(raceId.toLong, ratingTop._1.odds, ratingTop._1.horseId, ratingTop._1.horseNo))
+            println("%10d, %f, %10d, %d".format(raceId.toLong, ratingTop._1.odds, ratingTop._1.horseId, ratingTop._1.horseNo))
             for {
               res <- sortedScores
             } {
-              pw.println("%f, %d, %10d".format(res._2, res._3, res._1.horseId))
-              println("%f, %d, %10d".format(res._2, res._3, res._1.horseId))
+              pw.println("%f, %d, %10d, %d".format(res._2, res._3, res._1.horseId, res._1.horseNo))
+              println("%f, %d, %10d, %d".format(res._2, res._3, res._1.horseId, res._1.horseNo))
             }
           }
       }
@@ -212,5 +212,5 @@ object Main {
     }
 
   def makeRaceType(vector: DenseVector[Double]): Long =
-    100000 + vector(1).toLong * 10000 + vector(3).toLong
+    100000 + vector(2).toLong * 10000 + vector(4).toLong
 }
