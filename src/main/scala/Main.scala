@@ -151,11 +151,11 @@ object Main {
               val indexTime = newRatingInfoTime.find(_._1.horseId == horse.horseId).get._4
               val score = rating +
                 (indexTime match {
-                  case 0 => 20
-                  case 1 => 15
-                  case 2 => 10
-                  case 3 => 5
-                  case 4 => 5
+                  case 0 => 0
+                  case 1 => 0
+                  case 2 => 0
+                  case 3 => 0
+                  case 4 => 0
                   case _ => 0
                 })
               (horse, score, ratingCount)
@@ -185,6 +185,8 @@ object Main {
               pw.println("%f, %d, %10d, %d".format(res._2, res._3, res._1.horseId, res._1.horseNo))
               println("%f, %d, %10d, %d".format(res._2, res._3, res._1.horseId, res._1.horseNo))
             }
+            pw.println()
+            println()
           }
       }
     } catch {
