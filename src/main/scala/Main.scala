@@ -13,13 +13,9 @@ object Main {
 
   private[this] val ratingMapDShort = scala.collection.mutable.Map[Int, (Double, Int)]()
 
-  private[this] val ratingMapDMiddle = scala.collection.mutable.Map[Int, (Double, Int)]()
-
   private[this] val ratingMapDLong = scala.collection.mutable.Map[Int, (Double, Int)]()
 
   private[this] val ratingMapSShort = scala.collection.mutable.Map[Int, (Double, Int)]()
-
-  private[this] val ratingMapSMiddle = scala.collection.mutable.Map[Int, (Double, Int)]()
 
   private[this] val ratingMapSLong = scala.collection.mutable.Map[Int, (Double, Int)]()
 
@@ -254,7 +250,7 @@ object Main {
           val predictOdds = scoreDiffs.foldLeft(1.0) {
             (x, y) =>
               x * (1 + Math.pow(10, -y / 400))
-          } * 3 - 1
+          } * 2.5 - 1
 
           val ratingTop = sortedScores.head
 
@@ -301,16 +297,12 @@ object Main {
 
   def getRatingMap(raceType: Long): scala.collection.mutable.Map[Int, (Double, Int)] =
     (raceType / 10000, raceType % 10000) match {
-      case (10, dist) if dist <= 1200 =>
-        ratingMapDShort
       case (10, dist) if dist <= 1600 =>
-        ratingMapDMiddle
+        ratingMapDShort
       case (10, _) =>
         ratingMapDLong
-      case (11, dist) if dist <= 1200 =>
-        ratingMapSShort
       case (11, dist) if dist <= 1600 =>
-        ratingMapSMiddle
+        ratingMapSShort
       case (11, _) =>
         ratingMapSLong
     }
