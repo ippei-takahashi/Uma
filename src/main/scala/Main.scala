@@ -10,57 +10,16 @@ object Main {
 
   private[this] val ratingMapDShort = scala.collection.mutable.Map[Int, (Double, Int)]()
 
-  private[this] val ratingMapDMiddle = scala.collection.mutable.Map[Int, (Double, Int)]()
-
   private[this] val ratingMapDLong = scala.collection.mutable.Map[Int, (Double, Int)]()
 
   private[this] val ratingMapSShort = scala.collection.mutable.Map[Int, (Double, Int)]()
-
-  private[this] val ratingMapSMiddle = scala.collection.mutable.Map[Int, (Double, Int)]()
 
   private[this] val ratingMapSLong = scala.collection.mutable.Map[Int, (Double, Int)]()
 
   private[this] val DEFAULT_RATE = 1500.0
 
-  private[this] val raceTypeArray = Array[Long](
-    101000,
-    111000,
-    101150,
-    101200,
-    111200,
-    101300,
-    101400,
-    111400,
-    101500,
-    111500,
-    101600,
-    111600,
-    101700,
-    111700,
-    101800,
-    111800,
-    101870,
-    101900,
-    102000,
-    112000,
-    102100,
-    112200,
-    102300,
-    112300,
-    102400,
-    112400,
-    102500,
-    112500,
-    112600,
-    113000,
-    113200,
-    113400,
-    113600
-  )
-
   def main(args: Array[String]) {
     val dataCSV = new File("data.csv")
-    val coefficientCSV = new File("coefficient.csv")
     val raceCSV = new File("race.csv")
 
     val data: DenseMatrix[Double] = csvread(dataCSV)
@@ -103,10 +62,8 @@ object Main {
 
     Seq(
       "ratingDShort.csv" -> ratingMapDShort,
-      "ratingDMiddle.csv" -> ratingMapDMiddle,
       "ratingDLong.csv" -> ratingMapDLong,
       "ratingSShort.csv" -> ratingMapSShort,
-      "ratingSMiddle.csv" -> ratingMapSMiddle,
       "ratingSLong.csv" -> ratingMapSLong
     ).foreach {
       case (fileName, ratingMap) =>
@@ -199,16 +156,12 @@ object Main {
 
   def getRatingMap(raceType: Long): scala.collection.mutable.Map[Int, (Double, Int)] =
     (raceType / 10000, raceType % 10000) match {
-      case (10, dist) if dist <= 1200 =>
-        ratingMapDShort
       case (10, dist) if dist <= 1600 =>
-        ratingMapDMiddle
+        ratingMapDShort
       case (10, _) =>
         ratingMapDLong
-      case (11, dist) if dist <= 1200 =>
-        ratingMapSShort
       case (11, dist) if dist <= 1600 =>
-        ratingMapSMiddle
+        ratingMapSShort
       case (11, _) =>
         ratingMapSLong
     }
