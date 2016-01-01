@@ -129,7 +129,7 @@ object Main {
           val predictOdds = scoreDiffs.foldLeft(1.0) {
             (x, y) =>
               x * (1 + Math.pow(10, -y / 400))
-          } * 3 - 1
+          } * 2.5 - 1
 
           val ratingTop = sortedScores.head
 
