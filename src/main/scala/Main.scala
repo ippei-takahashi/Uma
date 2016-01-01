@@ -214,23 +214,28 @@ object Main {
               (horse, rating, ratingCount, index)
           }
 
-          val newRatingInfoTime = ratingInfo.sortBy(
-            _._1.prevDataList.filter(_.raceType == raceType).map(_.time).sorted.headOption.getOrElse(Double.MaxValue)
+          val newRatingInfoTime = ratingInfo.map(
+            x => x -> x._1.prevDataList.filter(_.raceType == raceType).map(_.time).sorted.headOption
+          ).collect {
+            case (x, Some(time)) =>
+              x -> time
+          }.sortBy(
+            _._2
           ).zipWithIndex.map {
-            case ((horse, (rating, ratingCount)), index) =>
+            case (((horse, (rating, ratingCount)), _), index) =>
               (horse, rating, ratingCount, index)
           }
 
           val newRatingInfoScore = newRatingInfo.map {
             case (horse, rating, ratingCount, _) =>
-              val indexTime = newRatingInfoTime.find(_._1.horseId == horse.horseId).get._4
+              val indexTime = newRatingInfoTime.find(_._1.horseId == horse.horseId).map(_._4).getOrElse(-1)
               val score = rating +
                 (indexTime match {
-                  case 0 => 20
-                  case 1 => 15
-                  case 2 => 10
-                  case 3 => 5
-                  case 4 => 5
+                  case 0 => 0
+                  case 1 => 0
+                  case 2 => 0
+                  case 3 => 0
+                  case 4 => 0
                   case _ => 0
                 })
               (horse, score, ratingCount)
