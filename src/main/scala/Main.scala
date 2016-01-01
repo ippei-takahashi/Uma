@@ -85,7 +85,7 @@ object Main {
           val races = arr2.map { d =>
             val x = d(2 until data.cols - 2)
             val raceType = makeRaceType(x)
-            new Data(x, horseNo = d(3).toInt, time = d(data.cols - 2), raceId.toLong, raceType, isGoodBaba = x(9) + x(10) == 1.0 && x(5) == 1.0)
+            new Data(x, horseNo = d(3).toInt, time = d(data.cols - 3), raceId.toLong, raceType, isGoodBaba = x(9) + x(10) == 1.0 && x(5) == 1.0)
           }.toList
           races match {
             case head :: tail =>
