@@ -172,13 +172,13 @@ object Main {
               ratingMap.getOrElse(horse.horseId, (DEFAULT_RATE, 0))
           }.unzip
 
+          val k = 48 + Math.min(32.0, horses.map(_.prevDataList.length).sum) / 2
           for {
             i <- 0 until 3
             j <- (i + 1) until horses.length
           } {
             val e1 = 1.0 / (1.0 + Math.pow(10.0, (ratings(j) - ratings(i)) / 400.0))
             val e2 = 1.0 / (1.0 + Math.pow(10.0, (ratings(i) - ratings(j)) / 400.0))
-            val k = 64
 
             ratingUpdates(i) += k * (1.0 - e1)
             ratingUpdates(j) -= k * e2
