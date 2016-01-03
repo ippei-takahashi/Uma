@@ -6,9 +6,9 @@ import breeze.stats._
 object Main {
   type Gene = DenseVector[Double]
 
-  case class Data(x: DenseVector[Double], time: Double, raceId: Long, raceType: Long, isGoodBaba: Boolean, rank: Option[Int] = None)
+  case class Data(raceDate: Int, age: Int, rank: Int, odds: Double, time: Double, raceId: Long, raceType: Long, isGoodBaba: Boolean)
 
-  case class PredictData(horseId: Int, raceType: Long, rank: Int, odds: Double, oddsFuku: Double, age: Double,
+  case class PredictData(horseId: Int, raceDate: Int, raceType: Long, rank: Int, odds: Double, oddsFuku: Double, age: Double,
                          isGoodBaba: Boolean, prevDataList: Seq[Data])
 
   private[this] val ratingMapDShort = scala.collection.mutable.Map[Int, (Double, Int)]()
@@ -21,50 +21,9 @@ object Main {
 
   private[this] val DEFAULT_RATE = 1500.0
 
-  case class CompetitionData(raceType: Long, horseData1: CompetitionHorseData, horseData2: CompetitionHorseData)
-
-  case class CompetitionHorseData(no: Int, time: Double)
-
-  private[this] val raceTypeArray = Array[Long](
-    101000,
-    111000,
-    101150,
-    101200,
-    111200,
-    101300,
-    101400,
-    111400,
-    101500,
-    111500,
-    101600,
-    111600,
-    101700,
-    111700,
-    101800,
-    111800,
-    101870,
-    101900,
-    102000,
-    112000,
-    102100,
-    112200,
-    102300,
-    112300,
-    102400,
-    112400,
-    102500,
-    112500,
-    112600,
-    113000,
-    113200,
-    113400,
-    113600
-  )
-
   def main(args: Array[String]) {
 
-    val dataCSV = new File("data.csv")
-    val raceCSV = new File("race.csv")
+    val dataCSV = new File("past.csv")
 
     val data: DenseMatrix[Double] = csvread(dataCSV)
     val size = data.rows
@@ -74,95 +33,57 @@ object Main {
       array(i) = data(i, ::).t
     }
 
-    val dataMap = array.groupBy(_ (0)).map {
-      case (horseId, arr) => horseId -> arr.map { d =>
-        val raceId = d(data.cols - 1).toLong
-        val x = d(1 until data.cols - 2)
-        val raceType = makeRaceType(x)
-        new Data(x, d(data.cols - 2), raceId, raceType, isGoodBaba = x(4) + x(5) == 1.0 && x(8) == 1.0)
-      }.toList
-    }
-
-    val race: DenseMatrix[Double] = csvread(raceCSV)
-    val raceSize = race.rows
-
-    val raceArray = Array.ofDim[DenseVector[Double]](raceSize)
-    for (i <- 0 until raceSize) {
-      raceArray(i) = race(i, ::).t
-    }
-
-    val raceMap_ = raceArray.groupBy(_ (0)).map {
-      case (raceId, arr) => raceId -> (arr match {
-        case validArray if validArray.forall(vec => dataMap.get(vec(2)) match {
-          case Some(races) =>
-            subListBeforeRaceId(raceId.toLong, races).nonEmpty
-          case _ =>
-            false
-        }) =>
-          validArray.map {
-            vec =>
-              val races = dataMap(vec(2))
-              val head :: tail = subListBeforeRaceId(raceId.toLong, races)
-              PredictData(horseId = vec(2).toInt, raceType = head.raceType, rank = vec(1).toInt, odds = vec(3), oddsFuku = vec(5),
-                age = head.x(0), isGoodBaba = head.isGoodBaba, prevDataList = tail)
+    val raceSeq = array.groupBy(_ (0)).map {
+      case (raceId, arr) => raceId -> arr.groupBy(_ (1)).map {
+        case (horseId, arr2) =>
+          val races = arr2.map { d =>
+            val x = d(3 until data.cols - 1)
+            val raceType = makeRaceType(x)
+            new Data(raceDate = d(2).toInt, age = d(3).toInt, rank = d(d.length - 1).toInt,
+              odds = d(d.length - 2).toInt, time = d(d.length - 3).toInt, raceId = raceId.toLong,
+              raceType = raceType, isGoodBaba = x(9) + x(10) == 1.0 && x(5) == 1.0)
+          }.toList
+          races match {
+            case head :: tail =>
+              Some(PredictData(
+                horseId = horseId.toInt, raceDate = head.raceDate, raceType = head.raceType, rank = head.rank, odds = head.odds,
+                oddsFuku = (head.odds - 1) / 3 + 1, age = head.age, isGoodBaba = head.isGoodBaba, prevDataList = tail)
+              )
+            case _ =>
+              None
           }
-        case _ => Array[PredictData]()
-      })
-    }.filter {
-      case (_, arr) =>
-        arr.nonEmpty
-    }.map {
-      case (raceId, arr) =>
-        raceId -> arr.sortBy(_.rank)
-    }
-    val raceSeq_ = raceMap_.toSeq.sortBy(_._1)
-
-    val raceSeq = raceSeq_.map {
-      case (raceId, arr) =>
-        raceId -> arr.map {
-          pred =>
-            pred.copy(prevDataList = pred.prevDataList.map {
-              prevData =>
-                prevData.copy(rank = raceMap_.get(prevData.raceId).flatMap {
-                  _.find(_.horseId == pred.horseId)
-                }.map(_.rank))
-            })
-        }
-    }
+      }.toArray.collect {
+        case Some(x) => x
+      }
+    }.toSeq.sortBy(_._2.head.raceDate)
 
     var oddsCount = 0.0
     var raceCount = 0
     var betCount = 0
     var betWinCount = 0
-    val analyzeArray = Array.ofDim[Int](20)
 
-    val num1Range = 100000000
-    val num2Range = 10000
-    val num3Range = 100
-
-    val ranges = for {
-      num1 <- 500000000 to 1400000000 by num1Range
-      num2 <- 10000 to 50000 by num2Range
-      num3 <- 100 to 800 by num3Range
+    val dates = for {
+      num1 <- 2008 to 2015
+      num2 <- 1 to 12
+      num3 <- 0 to 1
     } yield {
-        (raceId: Double) =>
-          raceId >= num1 &&
-            raceId < num1 + num1Range &&
-            (raceId % (num2Range * 10)) >= num2 &&
-            (raceId % (num2Range * 10)) < num2 + num2Range &&
-            (raceId % (num3Range * 10)) >= num3 &&
-            (raceId % (num3Range * 10)) < num3 + num3Range
+        num1 * 10000 + num2 * 100 + num3 * 15
       }
 
+    val ranges = for (i <- 0 until (dates.length - 1)) yield {
+      (raceDate: Int) =>
+        dates(i) < raceDate && raceDate <= dates(i + 1)
+    }
 
     for {
       ri <- 0 until (ranges.length - 1)
     } {
       raceSeq.filter {
-        case (raceId, _) =>
-          ranges(ri)(raceId)
+        case (_, arr) =>
+          ranges(ri)(arr.head.raceDate)
       }.foreach {
-        case (raceId, horses) =>
+        case (raceId, horses_) =>
+          val horses = horses_.sortBy(_.rank)
           val ratingUpdates = horses.map(_ => 0.0)
           val ratingCountUpdates = horses.map(_ => 0)
 
@@ -172,7 +93,7 @@ object Main {
               ratingMap.getOrElse(horse.horseId, (DEFAULT_RATE, 0))
           }.unzip
 
-          val k = 48 + Math.min(32.0, horses.map(_.prevDataList.length).sum) / 2
+          val k = 64 + Math.min(32.0, ratingCounts.sum) / 2
           for {
             i <- 0 until 3
             j <- (i + 1) until horses.length
@@ -194,8 +115,8 @@ object Main {
       }
 
       raceSeq.filter {
-        case (raceId, arr) =>
-          ranges(ri + 1)(raceId)
+        case (_, arr) =>
+          ranges(ri + 1)(arr.head.raceDate)
       }.foreach {
         case (raceId, horses) =>
           val raceType = horses.head.raceType
@@ -257,11 +178,25 @@ object Main {
           if (ratingTop._3 > 0 && predictOdds < ratingTop._1.odds) {
             betCount += 1
             if (sortedScores.head._1.rank <= 2 || (sortedScores.head._1.rank <= 3 && horses.length >= 8)) {
-              betWinCount += 1
+            betWinCount += 1
               oddsCount += sortedScores.head._1.oddsFuku
             }
           }
       }
+    }
+
+    Seq(
+      "ratingDShort.csv" -> ratingMapDShort,
+      "ratingDLong.csv" -> ratingMapDLong,
+      "ratingSShort.csv" -> ratingMapSShort,
+      "ratingSLong.csv" -> ratingMapSLong
+    ).foreach {
+      case (fileName, ratingMap) =>
+        val mat = DenseMatrix(ratingMap.toArray.map {
+          case (key, (rating, count)) =>
+            (key.toDouble, rating, count.toDouble)
+        }.sortBy(_._2): _*)
+        csvwrite(new File(fileName), mat)
     }
 
 
@@ -282,19 +217,6 @@ object Main {
       Nil
   }
 
-  def makeAllCompetitions(horses: Array[PredictData]): Array[CompetitionData] =
-    for {
-      raceType <- raceTypeArray
-      i <- 0 until (horses.length - 1)
-      time1 <- horses(i).prevDataList.filter(_.raceType == raceType).filter(horses(i).age - _.x(0) < 25).map(_.time).sorted.headOption.toSeq
-      j <- (i + 1) until horses.length
-      time2 <- horses(j).prevDataList.filter(_.raceType == raceType).filter(horses(j).age - _.x(0) < 25).map(_.time).sorted.headOption.toSeq
-    } yield {
-      val horseData1 = CompetitionHorseData(i, time1)
-      val horseData2 = CompetitionHorseData(j, time2)
-      CompetitionData(raceType, horseData1, horseData2)
-    }
-
   def getRatingMap(raceType: Long): scala.collection.mutable.Map[Int, (Double, Int)] =
     (raceType / 10000, raceType % 10000) match {
       case (10, dist) if dist <= 1600 =>
@@ -309,5 +231,5 @@ object Main {
 
 
   def makeRaceType(vector: DenseVector[Double]): Long =
-    100000 + vector(1).toLong * 10000 + vector(3).toLong
+    100000 + vector(2).toLong * 10000 + vector(4).toLong
 }
