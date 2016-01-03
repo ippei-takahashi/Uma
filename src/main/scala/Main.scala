@@ -47,7 +47,7 @@ object Main {
             case head :: tail =>
               Some(PredictData(
                 horseId = horseId.toInt, raceDate = head.raceDate, raceType = head.raceType, rank = head.rank, odds = head.odds,
-                oddsFuku = (head.odds - 1) / 3 + 1, age = head.age, isGoodBaba = head.isGoodBaba, prevDataList = tail)
+                oddsFuku = (head.odds - 1) / 5 + 1, age = head.age, isGoodBaba = head.isGoodBaba, prevDataList = tail)
               )
             case _ =>
               None
@@ -75,114 +75,125 @@ object Main {
         dates(i) < raceDate && raceDate <= dates(i + 1)
     }
 
-    for {
-      ri <- 0 until (ranges.length - 1)
-    } {
-      raceSeq.filter {
-        case (_, arr) =>
-          ranges(ri)(arr.head.raceDate)
-      }.foreach {
-        case (raceId, horses_) =>
-          val horses = horses_.sortBy(_.rank)
-          val ratingUpdates = horses.map(_ => 0.0)
-          val ratingCountUpdates = horses.map(_ => 0)
+    val outFile = new File("result.csv")
+    val pw = new PrintWriter(outFile)
+    try {
+      for {
+        ri <- 0 until (ranges.length - 1)
+      } {
+        raceSeq.filter {
+          case (_, arr) =>
+            ranges(ri)(arr.head.raceDate)
+        }.foreach {
+          case (raceId, horses_) =>
+            val horses = horses_.sortBy(_.rank)
+            val ratingUpdates = horses.map(_ => 0.0)
+            val ratingCountUpdates = horses.map(_ => 0)
 
-          val ratingMap = getRatingMap(horses.head.raceType)
-          val (ratings, ratingCounts) = horses.map {
-            horse =>
-              ratingMap.getOrElse(horse.horseId, (DEFAULT_RATE, 0))
-          }.unzip
+            val ratingMap = getRatingMap(horses.head.raceType)
+            val (ratings, ratingCounts) = horses.map {
+              horse =>
+                ratingMap.getOrElse(horse.horseId, (DEFAULT_RATE, 0))
+            }.unzip
 
-          val k = 64 + Math.min(32.0, ratingCounts.sum) / 2
-          for {
-            i <- 0 until 3
-            j <- (i + 1) until horses.length
-          } {
-            val e1 = 1.0 / (1.0 + Math.pow(10.0, (ratings(j) - ratings(i)) / 400.0))
-            val e2 = 1.0 / (1.0 + Math.pow(10.0, (ratings(i) - ratings(j)) / 400.0))
+            val k = 32 + Math.min(160.0, ratingCounts.sum) / 10
+            for {
+              i <- 0 until 3
+              j <- (i + 1) until horses.length
+            } {
+              val e1 = 1.0 / (1.0 + Math.pow(10.0, (ratings(j) - ratings(i)) / 400.0))
+              val e2 = 1.0 / (1.0 + Math.pow(10.0, (ratings(i) - ratings(j)) / 400.0))
 
-            ratingUpdates(i) += k * (1.0 - e1)
-            ratingUpdates(j) -= k * e2
+              ratingUpdates(i) += k * (1.0 - e1)
+              ratingUpdates(j) -= k * e2
 
-            ratingCountUpdates(i) += 1
-            ratingCountUpdates(j) += 1
-          }
-
-          horses.zipWithIndex.foreach {
-            case (horse, index) =>
-              ratingMap.put(horse.horseId, (ratings(index) + ratingUpdates(index), ratingCounts(index) + ratingCountUpdates(index)))
-          }
-      }
-
-      raceSeq.filter {
-        case (_, arr) =>
-          ranges(ri + 1)(arr.head.raceDate)
-      }.foreach {
-        case (raceId, horses) =>
-          val raceType = horses.head.raceType
-
-          val ratingMap = getRatingMap(raceType)
-          val ratingInfo = horses.map {
-            horse =>
-              horse -> ratingMap.getOrElse(horse.horseId, (DEFAULT_RATE, 0))
-          }
-          val newRatingInfo = ratingInfo.sortBy(-_._2._1).zipWithIndex.map {
-            case ((horse, (rating, ratingCount)), index) =>
-              (horse, rating, ratingCount, index)
-          }
-
-          val newRatingInfoTime = ratingInfo.map(
-            x => x -> x._1.prevDataList.filter(_.raceType == raceType).map(_.time).sorted.headOption
-          ).collect {
-            case (x, Some(time)) =>
-              x -> time
-          }.sortBy(
-            _._2
-          ).zipWithIndex.map {
-            case (((horse, (rating, ratingCount)), _), index) =>
-              (horse, rating, ratingCount, index)
-          }
-
-          val newRatingInfoScore = newRatingInfo.map {
-            case (horse, rating, ratingCount, _) =>
-              val indexTime = newRatingInfoTime.find(_._1.horseId == horse.horseId).map(_._4).getOrElse(-1)
-              val score = rating +
-                (indexTime match {
-                  case 0 => 0
-                  case 1 => 0
-                  case 2 => 0
-                  case 3 => 0
-                  case 4 => 0
-                  case _ => 0
-                })
-              (horse, score, ratingCount)
-          }.sortBy(-_._2).zipWithIndex.map {
-            case ((horse, rating, ratingCount), index) =>
-              (horse, rating, ratingCount, index)
-          }
-
-          raceCount += 1
-
-          val sortedScores = newRatingInfoScore.sortBy(-_._2)
-
-          val scoreDiffs = for {
-            i <- 1 until sortedScores.length
-          } yield sortedScores.head._2 - sortedScores(i)._2
-          val predictOdds = scoreDiffs.foldLeft(1.0) {
-            (x, y) =>
-              x * (1 + Math.pow(10, -y / 400))
-          } * 2.5 - 1
-
-          val ratingTop = sortedScores.head
-
-          if (ratingTop._3 > 0 && predictOdds < ratingTop._1.odds) {
-            betCount += 1
-            if (sortedScores.head._1.rank <= 2 || (sortedScores.head._1.rank <= 3 && horses.length >= 8)) {
-            betWinCount += 1
-              oddsCount += sortedScores.head._1.oddsFuku
+              ratingCountUpdates(i) += 1
+              ratingCountUpdates(j) += 1
             }
-          }
+
+            horses.zipWithIndex.foreach {
+              case (horse, index) =>
+                ratingMap.put(horse.horseId, (ratings(index) + ratingUpdates(index), ratingCounts(index) + ratingCountUpdates(index)))
+            }
+        }
+
+        raceSeq.filter {
+          case (_, arr) =>
+            ranges(ri + 1)(arr.head.raceDate)
+        }.foreach {
+          case (raceId, horses) =>
+            val raceType = horses.head.raceType
+
+            val ratingMap = getRatingMap(raceType)
+            val ratingInfo = horses.map {
+              horse =>
+                horse -> ratingMap.getOrElse(horse.horseId, (DEFAULT_RATE, 0))
+            }
+            val newRatingInfo = ratingInfo.sortBy(-_._2._1).zipWithIndex.map {
+              case ((horse, (rating, ratingCount)), index) =>
+                (horse, rating, ratingCount, index)
+            }
+
+            val newRatingInfoTime = ratingInfo.map(
+              x => x -> x._1.prevDataList.filter(_.raceType == raceType).map(_.time).sorted.headOption
+            ).collect {
+              case (x, Some(time)) =>
+                x -> time
+            }.sortBy(
+              _._2
+            ).zipWithIndex.map {
+              case (((horse, (rating, ratingCount)), _), index) =>
+                (horse, rating, ratingCount, index)
+            }
+
+            val newRatingInfoScore = newRatingInfo.map {
+              case (horse, rating, ratingCount, _) =>
+                val indexTime = newRatingInfoTime.find(_._1.horseId == horse.horseId).map(_._4).getOrElse(-1)
+                val score = rating +
+                  (indexTime match {
+                    case 0 => 0
+                    case 1 => 0
+                    case 2 => 0
+                    case 3 => 0
+                    case 4 => 0
+                    case _ => 0
+                  })
+                (horse, score, ratingCount)
+            }.sortBy(-_._2).zipWithIndex.map {
+              case ((horse, rating, ratingCount), index) =>
+                (horse, rating, ratingCount, index)
+            }
+
+            raceCount += 1
+
+            val sortedScores = newRatingInfoScore.sortBy(-_._2)
+
+            val scoreDiffs = for {
+              i <- 1 until sortedScores.length
+            } yield sortedScores.head._2 - sortedScores(i)._2
+            val predictOdds = scoreDiffs.foldLeft(1.0) {
+              (x, y) =>
+                x * (1 + Math.pow(10, -y / 400))
+            } * 1.5 - 1
+
+            val ratingTop = sortedScores.head
+
+            if (ratingTop._3 > 0 && predictOdds < ratingTop._1.odds) {
+              sortedScores.foreach(pw.println)
+              pw.println
+
+              betCount += 1
+              if (sortedScores.head._1.rank <= 2 || (sortedScores.head._1.rank <= 3 && horses.length >= 8)) {
+                betWinCount += 1
+                oddsCount += sortedScores.head._1.oddsFuku
+              }
+            }
+        }
       }
+    } catch {
+      case e:Exception =>
+    } finally {
+      pw.close
     }
 
     Seq(
