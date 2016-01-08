@@ -47,7 +47,7 @@ object Main {
             case head :: tail =>
               Some(PredictData(
                 horseId = horseId.toInt, raceDate = head.raceDate, raceType = head.raceType, rank = head.rank, odds = head.odds,
-                oddsFuku = (head.odds - 1) / 5 + 1, age = head.age, isGoodBaba = head.isGoodBaba, prevDataList = tail)
+                oddsFuku = (head.odds - 1) / 4 + 1, age = head.age, isGoodBaba = head.isGoodBaba, prevDataList = tail)
               )
             case _ =>
               None
@@ -67,8 +67,8 @@ object Main {
       num2 <- 1 to 12
       num3 <- 0 to 25 by 5
     } yield {
-        num1 * 10000 + num2 * 100 + num3
-      }
+      num1 * 10000 + num2 * 100 + num3
+    }
 
     val ranges = for (i <- 0 until (dates.length - 1)) yield {
       (raceDate: Int) =>
@@ -98,7 +98,7 @@ object Main {
 
             val k = 48 + Math.min(32.0, ratingCounts.sum) / 2
             for {
-              i <- 0 until 3
+              i <- 0 until 5
               j <- (i + 1) until horses.length
             } {
               val e1 = 1.0 / (1.0 + Math.pow(10.0, (ratings(j) - ratings(i)) / 400.0))
@@ -119,15 +119,23 @@ object Main {
 
         raceSeq.filter {
           case (_, arr) =>
-            ranges(ri + 1)(arr.head.raceDate)
+            ranges(ri + 1)(arr.head.raceDate) && ri > 30
         }.foreach {
           case (raceId, horses) =>
             val raceType = horses.head.raceType
 
             val ratingMap = getRatingMap(raceType)
+            val ratingMapInverse = getRatingMapInverse(raceType)
+
             val ratingInfo = horses.map {
               horse =>
-                horse -> ratingMap.getOrElse(horse.horseId, (DEFAULT_RATE, 0))
+                horse -> {
+                  val (rating, ratingCount) = ratingMap.getOrElse(horse.horseId, (DEFAULT_RATE, 0))
+                  val (ratingInverse_, ratingCountInverse) = ratingMapInverse.getOrElse(horse.horseId, (DEFAULT_RATE, 0))
+                  val ratingInverse = ratingInverse_ - DEFAULT_RATE
+                  val ratingRate = if (raceType % 10000 <= 1600) 0.6 else 1.0
+                  (rating + ratingRate * ratingInverse, ratingCount + ratingRate * ratingCountInverse)
+                }
             }
             val newRatingInfo = ratingInfo.sortBy(-_._2._1).zipWithIndex.map {
               case ((horse, (rating, ratingCount)), index) =>
@@ -177,8 +185,9 @@ object Main {
             } * 2.5 - 1
 
             val ratingTop = sortedScores.head
+            val oddsTop = newRatingInfoScore.sortBy(_._1.odds).head
 
-            if (ratingTop._3 > 30 && predictOdds < ratingTop._1.odds) {
+            if (ratingTop._3 > 0 && ratingTop._3 < 300 && predictOdds < ratingTop._1.odds && ratingTop._1.odds > 10) {
               sortedScores.foreach(pw.println)
               pw.println
 
@@ -191,7 +200,7 @@ object Main {
         }
       }
     } catch {
-      case e:Exception =>
+      case e: Exception =>
     } finally {
       pw.close
     }
@@ -238,6 +247,18 @@ object Main {
         ratingMapSShort
       case (11, _) =>
         ratingMapSLong
+    }
+
+  def getRatingMapInverse(raceType: Long): scala.collection.mutable.Map[Int, (Double, Int)] =
+    (raceType / 10000, raceType % 10000) match {
+      case (10, dist) if dist <= 1600 =>
+        ratingMapDLong
+      case (10, _) =>
+        ratingMapDShort
+      case (11, dist) if dist <= 1600 =>
+        ratingMapSLong
+      case (11, _) =>
+        ratingMapSShort
     }
 
 
