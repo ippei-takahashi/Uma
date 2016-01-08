@@ -69,6 +69,7 @@ object Main {
     } yield {
         num1 * 10000 + num2 * 100 + num3 * 15
       }
+    println(dates)
 
     val ranges = for (i <- 0 until (dates.length - 1)) yield {
       (raceDate: Int) =>
@@ -96,7 +97,7 @@ object Main {
                 ratingMap.getOrElse(horse.horseId, (DEFAULT_RATE, 0))
             }.unzip
 
-            val k = 32 + Math.min(160.0, ratingCounts.sum) / 10
+            val k = 46 + Math.min(32.0, ratingCounts.sum) / 2
             for {
               i <- 0 until 3
               j <- (i + 1) until horses.length
@@ -174,7 +175,7 @@ object Main {
             val predictOdds = scoreDiffs.foldLeft(1.0) {
               (x, y) =>
                 x * (1 + Math.pow(10, -y / 400))
-            } * 1.5 - 1
+            } * 2.5 - 1
 
             val ratingTop = sortedScores.head
 
@@ -183,9 +184,9 @@ object Main {
               pw.println
 
               betCount += 1
-              if (sortedScores.head._1.rank <= 2 || (sortedScores.head._1.rank <= 3 && horses.length >= 8)) {
+              if (ratingTop._1.rank <= 2 || (ratingTop._1.rank <= 3 && horses.length >= 8)) {
                 betWinCount += 1
-                oddsCount += sortedScores.head._1.oddsFuku
+                oddsCount += ratingTop._1.oddsFuku
               }
             }
         }
