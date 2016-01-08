@@ -65,11 +65,10 @@ object Main {
     val dates = for {
       num1 <- 2008 to 2015
       num2 <- 1 to 12
-      num3 <- 0 to 1
+      num3 <- 0 to 25 by 5
     } yield {
-        num1 * 10000 + num2 * 100 + num3 * 15
+        num1 * 10000 + num2 * 100 + num3
       }
-    println(dates)
 
     val ranges = for (i <- 0 until (dates.length - 1)) yield {
       (raceDate: Int) =>
@@ -97,7 +96,7 @@ object Main {
                 ratingMap.getOrElse(horse.horseId, (DEFAULT_RATE, 0))
             }.unzip
 
-            val k = 46 + Math.min(32.0, ratingCounts.sum) / 2
+            val k = 48 + Math.min(32.0, ratingCounts.sum) / 2
             for {
               i <- 0 until 3
               j <- (i + 1) until horses.length
@@ -179,7 +178,7 @@ object Main {
 
             val ratingTop = sortedScores.head
 
-            if (ratingTop._3 > 0 && predictOdds < ratingTop._1.odds) {
+            if (ratingTop._3 > 30 && predictOdds < ratingTop._1.odds) {
               sortedScores.foreach(pw.println)
               pw.println
 
