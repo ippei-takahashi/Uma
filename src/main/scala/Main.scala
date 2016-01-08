@@ -187,7 +187,7 @@ object Main {
             val ratingTop = sortedScores.head
             val oddsTop = newRatingInfoScore.sortBy(_._1.odds).head
 
-            if (ratingTop._3 > 0 && ratingTop._3 < 300 && predictOdds < ratingTop._1.odds && ratingTop._1.odds > 10) {
+            if (ratingTop._3 > 0 && predictOdds < ratingTop._1.odds && ratingTop._1.odds > 10) {
               sortedScores.foreach(pw.println)
               pw.println
 
