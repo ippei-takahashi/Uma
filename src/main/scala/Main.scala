@@ -8,18 +8,47 @@ object Main {
 
   case class Data(raceDate: Int, age: Int, rank: Int, odds: Double, time: Double, raceId: Long, raceType: Long, isGoodBaba: Boolean)
 
-  case class PredictData(horseId: Int, raceDate: Int, raceType: Long, rank: Int, odds: Double, oddsFuku: Double, age: Double,
-                         isGoodBaba: Boolean, prevDataList: Seq[Data])
+  case class PredictData(horseId: Int, raceDate: Int, raceType: Long, rank: Int, odds: Double, oddsFuku: Double,
+                         time: Double, age: Double, isGoodBaba: Boolean, prevDataList: Seq[Data])
 
-  private[this] val ratingMapDShort = scala.collection.mutable.Map[Int, (Double, Int)]()
+  val CATEGORY_SHIBA_SHORT = 0
 
-  private[this] val ratingMapDLong = scala.collection.mutable.Map[Int, (Double, Int)]()
+  val CATEGORY_SHIBA_LONG = 1
 
-  private[this] val ratingMapSShort = scala.collection.mutable.Map[Int, (Double, Int)]()
+  val CATEGORY_DIRT_SHORT = 2
 
-  private[this] val ratingMapSLong = scala.collection.mutable.Map[Int, (Double, Int)]()
+  val CATEGORY_DIRT_LONG = 3
 
-  private[this] val DEFAULT_RATE = 1500.0
+  private[this] val raceTimeMap = scala.collection.mutable.Map[Int, List[Double]]()
+
+  private[this] val stdRaceMap = Map[Int, List[(Int, Double, Double)]](
+    CATEGORY_SHIBA_SHORT -> List(
+      (511600, 95.50099800399201,1.990869851887232),
+      (811600, 95.54538216560509,1.7949165490406667),
+      (611600, 95.92786615469007,2.1861284090289956),
+      (511400, 82.95085344320188,1.7293116687042962)
+    ),
+    CATEGORY_SHIBA_LONG -> List(
+      (511800, 108.91318124207858,2.559480165892545),
+      (911800, 108.31492842535788,2.016384145904715),
+      (612000, 122.8134110787172,2.5562905527012774),
+      (811800, 108.84785875281743,2.2397944081856873),
+      (411800, 108.5249569707401,2.013894107759768)
+    ),
+    CATEGORY_DIRT_SHORT -> List(
+      (501600, 99.90096256684492,2.2720015279892576),
+      (501400, 87.20122261844116,2.169095859747181),
+      (801200, 73.55891860123421,1.848696000416368),
+      (401200, 73.20599471054952,1.6411268647534247)
+    ),
+    CATEGORY_DIRT_LONG -> List(
+      (901800, 115.50652741514361,2.6392406646362865),
+      (801800, 115.01623455294403,2.670184758029812),
+      (401800, 115.39772727272727,2.3277014532411786)
+    )
+  )
+
+  private[this] val stdAndTimeMap = Map[Long, List[(Double, Double)]] // TODO: 最小二乗法使って傾きと切片求める
 
   def main(args: Array[String]) {
 
@@ -38,7 +67,7 @@ object Main {
         case (horseId, arr2) =>
           val races = arr2.map { d =>
             val x = d(3 until data.cols - 1)
-            val raceType = makeRaceType(x)
+            val raceType = makeRaceType(x, raceId.toLong)
             new Data(raceDate = d(2).toInt, age = d(3).toInt, rank = d(d.length - 1).toInt,
               odds = d(d.length - 2).toInt, time = d(d.length - 3).toInt, raceId = raceId.toLong,
               raceType = raceType, isGoodBaba = x(9) + x(10) == 1.0 && x(5) == 1.0)
@@ -47,7 +76,7 @@ object Main {
             case head :: tail =>
               Some(PredictData(
                 horseId = horseId.toInt, raceDate = head.raceDate, raceType = head.raceType, rank = head.rank, odds = head.odds,
-                oddsFuku = (head.odds - 1) / 4 + 1, age = head.age, isGoodBaba = head.isGoodBaba, prevDataList = tail)
+                oddsFuku = (head.odds - 1) / 4 + 1, time = head.time, age = head.age, isGoodBaba = head.isGoodBaba, prevDataList = tail)
               )
             case _ =>
               None
@@ -57,149 +86,42 @@ object Main {
       }
     }.toSeq.sortBy(_._2.head.raceDate)
 
-    var oddsCount = 0.0
-    var raceCount = 0
-    var betCount = 0
-    var betWinCount = 0
-
-    val dates = for {
-      num1 <- 2008 to 2015
-      num2 <- 1 to 12
-      num3 <- 0 to 25 by 5
-    } yield {
-      num1 * 10000 + num2 * 100 + num3
-    }
-
-    val ranges = for (i <- 0 until (dates.length - 1)) yield {
-      (raceDate: Int) =>
-        dates(i) < raceDate && raceDate <= dates(i + 1)
+    val horseSeq = raceSeq.flatMap(_._2.toSeq).groupBy(_.horseId).map {
+      case (horseId, seq) =>
+        seq.filter(_.isGoodBaba).groupBy(_.raceType).map {
+          case (_, times) =>
+            times.sortBy(_.time).head
+        }.toSeq
     }
 
     val outFile = new File("result.csv")
     val pw = new PrintWriter(outFile)
     try {
-      for {
-        ri <- 0 until (ranges.length - 1)
-      } {
-        raceSeq.filter {
-          case (_, arr) =>
-            ranges(ri)(arr.head.raceDate)
-        }.foreach {
-          case (raceId, horses_) =>
-            val horses = horses_.sortBy(_.rank)
-            val ratingUpdates = horses.map(_ => 0.0)
-            val ratingCountUpdates = horses.map(_ => 0)
-
-            val ratingMap = getRatingMap(horses.head.raceType)
-            val (ratings, ratingCounts) = horses.map {
-              horse =>
-                ratingMap.getOrElse(horse.horseId, (DEFAULT_RATE, 0))
-            }.unzip
-
-            val k = 48 + Math.min(32.0, ratingCounts.sum) / 2
-            for {
-              i <- 0 until 3
-              j <- (i + 1) until horses.length
-            } {
-              val e1 = 1.0 / (1.0 + Math.pow(10.0, (ratings(j) - ratings(i)) / 400.0))
-              val e2 = 1.0 / (1.0 + Math.pow(10.0, (ratings(i) - ratings(j)) / 400.0))
-
-              ratingUpdates(i) += k * (1.0 - e1)
-              ratingUpdates(j) -= k * e2 * 1.5
-
-              ratingCountUpdates(i) += 1
-              ratingCountUpdates(j) += 1
+      horseSeq.foreach {
+        horses =>
+          val meanList = stdRaceMap(CATEGORY_DIRT_LONG).map {
+            case (raceType, m, s) =>
+              horses.find(_.raceType == raceType).map {
+                x => (m - x.time) / s * 10 + 50
+              }
+          }.collect {
+            case Some(x) => x
+          }
+          if (meanList.length > 1) {
+            val meanStd =  meanList match {
+              case Nil => 50
+              case list => mean(list)
             }
-
-            horses.zipWithIndex.foreach {
-              case (horse, index) =>
-                ratingMap.put(horse.horseId, (ratings(index) + ratingUpdates(index), ratingCounts(index) + ratingCountUpdates(index)))
-            }
-        }
-
-        raceSeq.filter {
-          case (_, arr) =>
-            ranges(ri + 1)(arr.head.raceDate) && ri > 30
-        }.foreach {
-          case (raceId, horses) =>
-            val raceType = horses.head.raceType
-
-            val ratingMap = getRatingMap(raceType)
-            val ratingMapInverse = getRatingMapInverse(raceType)
-
-            val ratingInfo = horses.map {
-              horse =>
-                horse -> {
-                  val (rating, ratingCount) = ratingMap.getOrElse(horse.horseId, (DEFAULT_RATE, 0))
-                  val (ratingInverse_, ratingCountInverse) = ratingMapInverse.getOrElse(horse.horseId, (DEFAULT_RATE, 0))
-                  val ratingInverse = ratingInverse_ - DEFAULT_RATE
-                  val ratingRate = if (raceType % 10000 <= 1600) 0.6 else 1.0
-                  (rating + ratingRate * ratingInverse, ratingCount + ratingRate * ratingCountInverse)
+            stdRaceMap(CATEGORY_DIRT_LONG).foreach {
+              case (raceType, m, s) =>
+                horses.find(_.raceType == raceType).foreach {
+                  x =>
+                    val std = (m - x.time) / s * 10 + 50
+                    val list = raceTimeMap.getOrElse(raceType, Nil)
+                    raceTimeMap.put(raceType, (std - meanStd) :: list)
                 }
             }
-            val newRatingInfo = ratingInfo.sortBy(-_._2._1).zipWithIndex.map {
-              case ((horse, (rating, ratingCount)), index) =>
-                (horse, rating, ratingCount, index)
-            }
-
-            val newRatingInfoTime = ratingInfo.map(
-              x => x -> x._1.prevDataList.filter(_.raceType == raceType).map(_.time).sorted.headOption
-            ).collect {
-              case (x, Some(time)) =>
-                x -> time
-            }.sortBy(
-              _._2
-            ).zipWithIndex.map {
-              case (((horse, (rating, ratingCount)), _), index) =>
-                (horse, rating, ratingCount, index)
-            }
-
-            val newRatingInfoScore = newRatingInfo.map {
-              case (horse, rating, ratingCount, _) =>
-                val indexTime = newRatingInfoTime.find(_._1.horseId == horse.horseId).map(_._4).getOrElse(-1)
-                val score = rating +
-                  (indexTime match {
-                    case 0 => 0
-                    case 1 => 0
-                    case 2 => 0
-                    case 3 => 0
-                    case 4 => 0
-                    case _ => 0
-                  })
-                (horse, score, ratingCount)
-            }.sortBy(-_._2).zipWithIndex.map {
-              case ((horse, rating, ratingCount), index) =>
-                (horse, rating, ratingCount, index)
-            }
-
-            raceCount += 1
-
-            val sortedScores = newRatingInfoScore.sortBy(-_._2)
-
-            val scoreDiffs = for {
-              i <- 1 until sortedScores.length
-            } yield sortedScores.head._2 - sortedScores(i)._2
-            val predictOdds = scoreDiffs.foldLeft(1.0) {
-              (x, y) =>
-                x * (1 + Math.pow(10, -y / 400))
-            } * 2.5 - 1
-
-            val ratingTop = sortedScores.head
-            val oddsTop = newRatingInfoScore.sortBy(_._1.odds).head
-
-            if (ratingTop._3 > 0 && predictOdds < ratingTop._1.odds && ratingTop._1.odds > 0) {
-              pw.println("%010d".format(raceId.toLong))
-              sortedScores.foreach(pw.println)
-              pw.println
-
-              betCount += 1
-//              if (ratingTop._1.rank <= 2 || (ratingTop._1.rank <= 3 && horses.length >= 8)) {
-              if (ratingTop._1.rank <= 1) {
-                betWinCount += 1
-                oddsCount += ratingTop._1.odds
-              }
-            }
-        }
+          }
       }
     } catch {
       case e: Exception =>
@@ -208,26 +130,16 @@ object Main {
     }
 
     Seq(
-      "ratingDShort.csv" -> ratingMapDShort,
-      "ratingDLong.csv" -> ratingMapDLong,
-      "ratingSShort.csv" -> ratingMapSShort,
-      "ratingSLong.csv" -> ratingMapSLong
+      "hensachi.csv" -> raceTimeMap
     ).foreach {
-      case (fileName, ratingMap) =>
-        val mat = DenseMatrix(ratingMap.toArray.map {
-          case (key, (rating, count)) =>
-            (key.toDouble, rating, count.toDouble)
+      case (fileName, map) =>
+        val mat = DenseMatrix(map.toArray.map {
+          case (key, list) =>
+            val m = mean(list)
+            (key.toDouble, m)
         }.sortBy(_._2): _*)
         csvwrite(new File(fileName), mat)
     }
-
-
-    val rtn = oddsCount / betCount
-    val p = betWinCount.toDouble / betCount.toDouble
-    val r = oddsCount / betWinCount - 1.0
-    val kf = ((r + 1) * p - 1) / r
-    val g = Math.pow(Math.pow(1 + r * kf, p) * Math.pow(1 - kf, 1 - p), betCount)
-    println(raceCount, oddsCount / betWinCount, betCount, betWinCount, betWinCount.toDouble / betCount.toDouble, rtn, kf, g)
   }
 
   def subListBeforeRaceId(raceId: Long, list: List[Data]): List[Data] = list match {
@@ -239,31 +151,19 @@ object Main {
       Nil
   }
 
-  def getRatingMap(raceType: Long): scala.collection.mutable.Map[Int, (Double, Int)] =
-    (raceType / 10000, raceType % 10000) match {
-      case (10, dist) if dist <= 1600 =>
-        ratingMapDShort
-      case (10, _) =>
-        ratingMapDLong
-      case (11, dist) if dist <= 1600 =>
-        ratingMapSShort
-      case (11, _) =>
-        ratingMapSLong
-    }
+  def getRaceCategory(raceType: Long) = ((raceType / 10000) % 10, raceType % 10000) match {
+    case (0, dist) if dist <= 1600 =>
+      CATEGORY_SHIBA_SHORT
+    case (0, dist)=>
+      CATEGORY_SHIBA_LONG
+    case (1, dist) if dist <= 1600 =>
+      CATEGORY_SHIBA_SHORT
+    case (1, dist) =>
+      CATEGORY_SHIBA_LONG
+  }
 
-  def getRatingMapInverse(raceType: Long): scala.collection.mutable.Map[Int, (Double, Int)] =
-    (raceType / 10000, raceType % 10000) match {
-      case (10, dist) if dist <= 1600 =>
-        ratingMapDLong
-      case (10, _) =>
-        ratingMapDShort
-      case (11, dist) if dist <= 1600 =>
-        ratingMapSLong
-      case (11, _) =>
-        ratingMapSShort
-    }
-
-
-  def makeRaceType(vector: DenseVector[Double]): Long =
-    100000 + vector(2).toLong * 10000 + vector(4).toLong
+  def makeRaceType(vector: DenseVector[Double], raceId: Long): Long = {
+    val babaCode = (raceId / 1000000) % 100
+    babaCode * 100000 + vector(2).toLong * 10000 + vector(4).toLong
+  }
 }
