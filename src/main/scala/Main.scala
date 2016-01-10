@@ -98,14 +98,14 @@ object Main {
 
             val k = 48 + Math.min(32.0, ratingCounts.sum) / 2
             for {
-              i <- 0 until 5
+              i <- 0 until 3
               j <- (i + 1) until horses.length
             } {
               val e1 = 1.0 / (1.0 + Math.pow(10.0, (ratings(j) - ratings(i)) / 400.0))
               val e2 = 1.0 / (1.0 + Math.pow(10.0, (ratings(i) - ratings(j)) / 400.0))
 
               ratingUpdates(i) += k * (1.0 - e1)
-              ratingUpdates(j) -= k * e2
+              ratingUpdates(j) -= k * e2 * 1.5
 
               ratingCountUpdates(i) += 1
               ratingCountUpdates(j) += 1
@@ -187,14 +187,16 @@ object Main {
             val ratingTop = sortedScores.head
             val oddsTop = newRatingInfoScore.sortBy(_._1.odds).head
 
-            if (ratingTop._3 > 0 && predictOdds < ratingTop._1.odds && ratingTop._1.odds > 10) {
+            if (ratingTop._3 > 0 && predictOdds < ratingTop._1.odds && ratingTop._1.odds > 0) {
+              pw.println("%010d".format(raceId.toLong))
               sortedScores.foreach(pw.println)
               pw.println
 
               betCount += 1
-              if (ratingTop._1.rank <= 2 || (ratingTop._1.rank <= 3 && horses.length >= 8)) {
+//              if (ratingTop._1.rank <= 2 || (ratingTop._1.rank <= 3 && horses.length >= 8)) {
+              if (ratingTop._1.rank <= 1) {
                 betWinCount += 1
-                oddsCount += ratingTop._1.oddsFuku
+                oddsCount += ratingTop._1.odds
               }
             }
         }
