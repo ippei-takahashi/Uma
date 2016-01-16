@@ -100,7 +100,7 @@ object Main {
             val raceType = makeRaceType(x, raceId.toLong)
             new Data(raceDate = d(2).toInt, age = d(3).toInt, rank = d(d.length - 1).toInt,
               odds = d(d.length - 2).toInt, time = d(d.length - 3).toInt, raceId = raceId.toLong,
-              raceType = raceType, isGoodBaba = x(9) + x(10) == 1.0 && x(5) == 1.0)
+              raceType = raceType, isGoodBaba = x(11) + x(12) == 1.0 && x(7) == 1.0)
           }.toList
           races match {
             case head :: _ =>
@@ -125,7 +125,7 @@ object Main {
           val raceType = makeRaceType(x, raceId.toLong)
           new Data(raceDate = d(2).toInt, age = d(3).toInt, rank = d(d.length - 1).toInt,
             odds = d(d.length - 2).toInt, time = d(d.length - 3).toInt, raceId = raceId.toLong,
-            raceType = raceType, isGoodBaba = x(9) + x(10) == 1.0 && x(5) == 1.0)
+            raceType = raceType, isGoodBaba = x(11) + x(12) == 1.0 && x(7) == 1.0)
         }.toList
     }
 
@@ -201,18 +201,18 @@ object Main {
   }
 
   def getRaceCategory(raceType: Long) = ((raceType / 10000) % 10, raceType % 10000) match {
-    case (0, dist) if dist <= 1600 =>
-      CATEGORY_SHIBA_SHORT
-    case (0, dist) =>
-      CATEGORY_SHIBA_LONG
     case (1, dist) if dist <= 1600 =>
-      CATEGORY_DIRT_SHORT
+      CATEGORY_SHIBA_SHORT
     case (1, dist) =>
+      CATEGORY_SHIBA_LONG
+    case (0, dist) if dist <= 1600 =>
+      CATEGORY_DIRT_SHORT
+    case (0, dist) =>
       CATEGORY_DIRT_LONG
   }
 
   def makeRaceType(vector: DenseVector[Double], raceId: Long): Long = {
     val babaCode = (raceId / 1000000) % 100
-    babaCode * 100000 + vector(2).toLong * 10000 + vector(4).toLong
+    babaCode * 100000 + vector(2).toLong * 10000 + vector(6).toLong
   }
 }
