@@ -9,8 +9,8 @@ object Main {
   case class Data(raceDate: Int, raceType: Long, age: Int, rank: Int, odds: Double, time: Double, time3f: Double,
                   raceId: Long, isGoodBaba: Boolean)
 
-  case class PredictData(horseId: Int, raceDate: Int, raceType: Long, age: Double,  rank: Int, odds: Double, oddsFuku: Double,
-                         time: Double, time3f: Double,isGoodBaba: Boolean, prevDataList: Seq[Data])
+  case class PredictData(horseId: Int, raceDate: Int, raceType: Long, age: Double, rank: Int, odds: Double, oddsFuku: Double,
+                         time: Double, time3f: Double, isGoodBaba: Boolean, prevDataList: Seq[Data])
 
   val CATEGORY_SHIBA_SHORT = 0
 
@@ -218,7 +218,7 @@ object Main {
       array(i) = data(i, ::).t
     }
 
-    val raceMap = array.groupBy(_(0)).map {
+    val raceMap = array.groupBy(_ (0)).map {
       case (raceId, arr) =>
         val horses = arr.map {
           d =>
@@ -234,7 +234,7 @@ object Main {
     }
     val raceSeq_ = raceMap.toSeq.sortBy(_._2.head.raceDate)
 
-    val horseMap = array.groupBy(_(1)).map {
+    val horseMap = array.groupBy(_ (1)).map {
       case (horseId, arr) =>
         horseId -> arr.map { d =>
           val raceId = d(0)
@@ -260,12 +260,16 @@ object Main {
     val pw = new PrintWriter(outFile)
 
     var raceCount = 0.0
+    var oddTopWinCount = 0.0
+
+    var betRaceCount = 0.0
+    var betCount = 0.0
     var winCount = 0.0
     var oddsCount = 0.0
 
     try {
       raceSeq.foreach {
-        case (raceId, horses) =>
+        case (raceId, horses) if horses.head.isGoodBaba =>
           val raceCategory = getRaceCategory(horses.head.raceType)
           val raceDate = horses.head.raceDate
 
@@ -295,7 +299,7 @@ object Main {
               val time = prevStdList.map(_._1).sortBy(-_).headOption.getOrElse(Double.NaN)
               val time3f = prevStdList.map(_._2).sortBy(-_).headOption.getOrElse(Double.NaN)
               (horse.copy(prevDataList = Nil), time, time3f, time * 3 + time3f)
-          }.sortBy(_._1.odds)
+          }.sortBy(_._1.odds).toSeq
 
           val timeMean = res.toList.map(_._2).filterNot(_.isNaN) match {
             case Nil => Double.NaN
@@ -313,17 +317,46 @@ object Main {
           val oddsTop = res.sortBy(_._1.odds).head
           val prevLengthMean = mean(horses.map(_.prevDataList.length.toDouble).toSeq)
 
+          val removeSeq = if (timeMean.isNaN || time3fMean.isNaN || prevLengthMean <= 5)
+            Nil
+          else
+            res.filter {
+              x =>
+                !x._2.isNaN && x._2 < timeMean && !x._3.isNaN && x._3 < time3fMean
+            }
+
+          val shareSum = removeSeq.map {
+            x =>
+              78.8 / (x._1.odds - 1)
+          }.sum
+
+          if (shareSum > 70 && res.count(_._2.isNaN) < 3) {
+            betRaceCount += 1
+            res.filter {
+              x =>
+                (x._2.isNaN || x._2 >= timeMean || x._3.isNaN || x._3 >= time3fMean) && x._1.odds < 30
+            }.foreach {
+              x =>
+                betCount += 1
+                if (x._1.rank == 1) {
+                  winCount += 1
+                  oddsCount += x._1.odds
+                }
+            }
+          }
+
           if (!timeMean.isNaN && !oddsTop._2.isNaN && timeMean > oddsTop._2 &&
             !time3fMean.isNaN && !oddsTop._3.isNaN && time3fMean > oddsTop._3 &&
-            prevLengthMean > 5 && oddsTop._1.isGoodBaba) {
+            prevLengthMean > 5) {
             raceCount += 1
             if (oddsTop._1.rank == 1) {
-              winCount += 1
+              oddTopWinCount += 1
             }
             pw.println("%010d".format(raceId.toLong))
             res.foreach(pw.println)
             pw.println
           }
+        case _ =>
       }
     } catch {
       case e: Exception =>
@@ -331,7 +364,8 @@ object Main {
       pw.close
     }
 
-    println(raceCount, winCount / raceCount)
+    println(betCount, betRaceCount, winCount / betCount, oddsCount / winCount, oddsCount / betCount)
+    println(raceCount, oddTopWinCount / raceCount)
   }
 
   def subListBeforeRaceId(raceId: Long, list: List[Data]): List[Data] = list match {
