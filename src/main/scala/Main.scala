@@ -316,7 +316,7 @@ object Main {
           val oddsTop = stdRes.sortBy(_._1.odds).head
           val prevLengthMean = mean(horses.map(_.prevDataList.length.toDouble).toSeq)
 
-          val removeSeq = if (timeMean.isNaN || time3fMean.isNaN || prevLengthMean <= 5)
+          val removeSeq = if (timeMean.isNaN || time3fMean.isNaN)
             Nil
           else
             stdRes.filter {
@@ -328,17 +328,18 @@ object Main {
               78.8 / (x._1.odds - 1)
           }.sum
 
-          if (shareSum > 70 && res.count(_._2.isNaN) < 3) {
+          if (shareSum > 50 && res.count(_._2.isNaN) < 3) {
             betRaceCount += 1
             stdRes.filter {
               x =>
-                (x._2 >= 50 || x._3 >= 50) && x._1.odds < 30
+                x._2 >= 50 || x._3 >= 50
             }.foreach {
               x =>
-                betCount += 1
+                val betRate = (x._2 + x._3) / 100
+                betCount += betRate
                 if (x._1.rank == 1) {
-                  winCount += 1
-                  oddsCount += x._1.odds
+                  winCount += betRate
+                  oddsCount += x._1.odds * betRate
                 }
             }
           }
