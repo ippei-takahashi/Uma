@@ -24,29 +24,29 @@ object Main {
 
   private[this] val time3fRaceMap = Map[Int, List[(Int, Double, Double)]](
     CATEGORY_SHIBA_SHORT -> List(
-      (1011200, 35.68479511143062, 1.0279668620866114),
-      (1011500, 36.37524096385539, 1.1555021828293874),
+      (1011200, 35.67979511143062, 1.0279668620866114),
+      (1011500, 36.36524096385539, 1.1555021828293874),
       (2011200, 35.97376434762235, 1.1931978414264874),
-      (3011200, 35.506440281030535, 1.1426624081551768),
-      (4011200, 35.453937586048604, 0.9763215515617614),
-      (4011400, 36.140645978467354, 1.2752696190485617),
-      (4111600, 34.988672323434, 1.1476251430613995),
-      (5011400, 35.13245200698084, 1.1600726158564252),
-      (5011600, 35.645427605926635, 1.2407232129466839),
+      (3011200, 35.496440281030535, 1.1426624081551768),
+      (4011200, 35.443937586048604, 0.9763215515617614),
+      (4011400, 36.170645978467354, 1.2752696190485617),
+      (4111600, 35.018672323434, 1.1476251430613995),
+      (5011400, 35.09745200698084, 1.1600726158564252),
+      (5011600, 35.680427605926635, 1.2407232129466839),
       (6111200, 35.29796541200404, 1.0388820629902389),
-      (6111600, 36.252679701786465, 1.2422251992493607),
-      (7011200, 35.49920132325149, 1.1119733078241145),
+      (6111600, 36.272679701786465, 1.2422251992493607),
+      (7011200, 35.46420132325149, 1.1119733078241145),
       (7011400, 36.474978279756694, 1.3006632127864723),
       (7011600, 36.504150943396196, 1.2160952801921898),
-      (8011200, 34.742827054286556, 0.993174175599597),
-      (8011400, 35.75855348635776, 1.0684022410275884),
+      (8011200, 34.732827054286556, 0.993174175599597),
+      (8011400, 35.76355348635776, 1.0684022410275884),
       (8111400, 35.1726993865031, 0.9874253242480524),
       (8011600, 36.233097428638726, 1.191909412995646),
-      (8111600, 35.95762160091917, 1.589835810475051),
-      (9011200, 35.20698942229457, 1.0350978911048494),
+      (8111600, 36.00762160091917, 1.589835810475051),
+      (9011200, 35.22698942229457, 1.0350978911048494),
       (9011400, 36.13898237179488, 1.108296794772634),
-      (9111600, 35.80734473447351, 1.2739163480666071),
-      (10011200, 35.37297268344933, 1.0594717023040627)
+      (9111600, 35.84234473447351, 1.2739163480666071),
+      (10011200, 35.36797268344933, 1.0594717023040627)
     ),
     CATEGORY_SHIBA_LONG -> List(
       (1011800, 36.10959007551244, 1.261932594858037),
@@ -298,31 +298,29 @@ object Main {
             case (horse, prevStdList) =>
               val time = prevStdList.map(_._1).sortBy(-_).headOption.getOrElse(Double.NaN)
               val time3f = prevStdList.map(_._2).sortBy(-_).headOption.getOrElse(Double.NaN)
-              (horse.copy(prevDataList = Nil), time, time3f, time * 3 + time3f)
+              (horse.copy(prevDataList = Nil), time, time3f)
           }.sortBy(_._1.odds).toSeq
 
-          val timeMean = res.toList.map(_._2).filterNot(_.isNaN) match {
-            case Nil => Double.NaN
-            case list => mean(list)
+          val (timeMean, timeStd) = res.toList.map(_._2).filterNot(_.isNaN) match {
+            case Nil => (Double.NaN, Double.NaN)
+            case list => (mean(list), stddev(list))
           }
-          val time3fMean = res.toList.map(_._3).filterNot(_.isNaN) match {
-            case Nil => Double.NaN
-            case list => mean(list)
+          val (time3fMean, time3fStd) = res.toList.map(_._3).filterNot(_.isNaN) match {
+            case Nil => (Double.NaN, Double.NaN)
+            case list => (mean(list), stddev(list))
           }
-          val scoreMean = res.toList.map(_._4).filterNot(_.isNaN) match {
-            case Nil => Double.NaN
-            case list => mean(list)
+          val stdRes = res.map {
+            case (horse, time, time3f) =>
+              (horse, (time - timeMean) / timeStd * 10 + 50, (time3f - time3fMean) / time3fStd * 10 + 50)
           }
-
-          val oddsTop = res.sortBy(_._1.odds).head
+          val oddsTop = stdRes.sortBy(_._1.odds).head
           val prevLengthMean = mean(horses.map(_.prevDataList.length.toDouble).toSeq)
 
           val removeSeq = if (timeMean.isNaN || time3fMean.isNaN || prevLengthMean <= 5)
             Nil
           else
-            res.filter {
-              x =>
-                !x._2.isNaN && x._2 < timeMean && !x._3.isNaN && x._3 < time3fMean
+            stdRes.filter {
+              x => x._2 < 50 && x._3 < 50
             }
 
           val shareSum = removeSeq.map {
@@ -332,9 +330,9 @@ object Main {
 
           if (shareSum > 70 && res.count(_._2.isNaN) < 3) {
             betRaceCount += 1
-            res.filter {
+            stdRes.filter {
               x =>
-                (x._2.isNaN || x._2 >= timeMean || x._3.isNaN || x._3 >= time3fMean) && x._1.odds < 30
+                (x._2 >= 50 || x._3 >= 50) && x._1.odds < 30
             }.foreach {
               x =>
                 betCount += 1
@@ -345,15 +343,13 @@ object Main {
             }
           }
 
-          if (!timeMean.isNaN && !oddsTop._2.isNaN && timeMean > oddsTop._2 &&
-            !time3fMean.isNaN && !oddsTop._3.isNaN && time3fMean > oddsTop._3 &&
-            prevLengthMean > 5) {
+          if (removeSeq.nonEmpty && oddsTop._2 < 50 && oddsTop._3 < 50) {
             raceCount += 1
             if (oddsTop._1.rank == 1) {
               oddTopWinCount += 1
             }
             pw.println("%010d".format(raceId.toLong))
-            res.foreach(pw.println)
+            stdRes.foreach(pw.println)
             pw.println
           }
         case _ =>
