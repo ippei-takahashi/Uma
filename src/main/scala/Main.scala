@@ -225,7 +225,7 @@ object Main {
             val x = d(3 until data.cols - 1)
             val raceType = makeRaceType(x, raceId.toLong)
             new PredictData(horseId = d(1).toInt, raceDate = d(2).toInt, age = d(3).toInt, rank = d(d.length - 1).toInt,
-              odds = d(d.length - 2), oddsFuku = (d(d.length - 2) - 1) / 4 + 1, time = d(d.length - 3),
+              odds = d(d.length - 2), oddsFuku = (d(d.length - 2) - 1) / 5 + 1, time = d(d.length - 3),
               time3f = d(d.length - 4), raceType = raceType, isGoodBaba = x(11) + x(12) == 1.0 && x(7) + x(8) == 1.0,
               prevDataList = Nil)
         }
@@ -263,13 +263,14 @@ object Main {
     var oddTopWinCount = 0.0
 
     var betRaceCount = 0.0
+    var winRaceCount = 0.0
     var betCount = 0.0
     var winCount = 0.0
     var oddsCount = 0.0
 
     try {
       raceSeq.foreach {
-        case (raceId, horses) if horses.head.isGoodBaba =>
+        case (raceId, horses)  if horses.head.isGoodBaba =>
           val raceCategory = getRaceCategory(horses.head.raceType)
           val raceDate = horses.head.raceDate
 
@@ -320,7 +321,7 @@ object Main {
             Nil
           else
             stdRes.filter {
-              x => x._2 < 50 && x._3 < 50
+              x => x._2 < 50 && x._3 < 45
             }
 
           val shareSum = removeSeq.map {
@@ -330,9 +331,12 @@ object Main {
 
           if (shareSum > 50 && res.count(_._2.isNaN) < 3) {
             betRaceCount += 1
+            if (stdRes.exists(x => (x._2 >= 50 || x._3 >= 45) && x._1.rank == 1)) {
+              winRaceCount += 1
+            }
             stdRes.filter {
               x =>
-                x._2 >= 50 || x._3 >= 50
+                x._2 >= 50 || x._3 >= 45
             }.foreach {
               x =>
                 val betRate = (x._2 + x._3) / 100
@@ -361,7 +365,7 @@ object Main {
       pw.close
     }
 
-    println(betCount, betRaceCount, winCount / betCount, oddsCount / winCount, oddsCount / betCount)
+    println(betCount, betRaceCount, winRaceCount / betRaceCount, winCount / betCount, oddsCount / winCount, oddsCount / betCount)
     println(raceCount, oddTopWinCount / raceCount)
   }
 
