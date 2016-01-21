@@ -20,7 +20,8 @@ object Main {
 
   val CATEGORY_DIRT_LONG = 3
 
-  private[this] val raceTimeMap = scala.collection.mutable.Map[Int, List[Double]]()
+  private[this] val raceTimeMap = scala.collection.mutable.Map[Long, List[Double]]()
+  private[this] val raceTime3fMap = scala.collection.mutable.Map[Long, List[Double]]()
 
   private[this] val time3fRaceMap = Map[Int, List[(Int, Double, Double)]](
     CATEGORY_SHIBA_SHORT -> List(
@@ -171,7 +172,7 @@ object Main {
       (10011800, 109.3377969395189, 1.988295422621954)
     ),
     CATEGORY_DIRT_SHORT -> List(
-      (1001000, 61.31498701298702, 1.0884386108084438),
+      (1001000, 60.81498701298702, 1.0884386108084438),
       (1001200, 122.21142857142861, 2.1842925271851628),
       (1001700, 108.14218779881466, 2.2091342584981106),
       (2001000, 61.09152081563298, 1.315948972428854),
@@ -191,7 +192,7 @@ object Main {
       (8001400, 86.53577096384202, 1.8714697657323283),
       (9001200, 73.60087912087921, 1.890763327337309),
       (9001400, 86.55569712981869, 1.8970243120400319),
-      (10001000, 61.44290198237887, 1.298420031463923),
+      (10001000, 60.94290198237887, 1.298420031463923),
       (10001700, 108.17174902152653, 2.3795920033965743)
     ),
     CATEGORY_DIRT_LONG -> List(
@@ -202,9 +203,19 @@ object Main {
       (8001800, 115.08236376759333, 2.616957038338896),
       (8001900, 121.89903749300501, 2.2135110851092303),
       (9001800, 115.48791161178588, 2.553272323001846),
-      (9002000, 128.19694117647062, 2.0245398086682442)
+      (9002000, 127.49694117647062, 2.0245398086682442)
     )
   )
+
+  val timeRaceFlattenMap = timeRaceMap.values.toList.flatten.map {
+    case (key, m, s) =>
+      key.toLong -> (m, s)
+  }.toMap
+
+  val time3fRaceFlattenMap = time3fRaceMap.values.toList.flatten.map {
+    case (key, m, s) =>
+      key.toLong -> (m, s)
+  }.toMap
 
   def main(args: Array[String]) {
 
@@ -267,6 +278,32 @@ object Main {
     var betCount = 0.0
     var winCount = 0.0
     var oddsCount = 0.0
+
+    horseMap.foreach {
+      case (_, races) =>
+        races.filter(x => x.isGoodBaba && timeRaceFlattenMap.get(x.raceType).isDefined).foreach {
+          race =>
+            val (m, s) = timeRaceFlattenMap(race.raceType)
+            val (m3f, s3f) = time3fRaceFlattenMap(race.raceType)
+            val stdTime = (m - race.time) / s * 10 + 50
+            val stdTime3f = (m3f - race.time3f) / s3f * 10 + 50
+            raceTimeMap.put(race.raceType, stdTime :: raceTimeMap.getOrElse(race.raceType, Nil))
+            raceTime3fMap.put(race.raceType, stdTime3f :: raceTime3fMap.getOrElse(race.raceType, Nil))
+        }
+    }
+    Seq(
+      "raceTimeMean.csv" -> raceTimeMap,
+      "raceTime3fMean.csv" -> raceTime3fMap
+    ).foreach {
+      case (fileName, map) =>
+        val mat = DenseMatrix(map.toArray.map {
+          case (key, list) =>
+            val m = mean(list)
+            val s = stddev(list)
+            (key.toDouble, list.length.toDouble, m, s)
+        }.sortBy(_._3): _*)
+        csvwrite(new File(fileName), mat)
+    }
 
     try {
       raceSeq.foreach {
@@ -336,7 +373,7 @@ object Main {
             }
             stdRes.filter {
               x =>
-                x._2 >= 50 || x._3 >= 45
+                (x._2 >= 50 || x._3 >= 45)
             }.foreach {
               x =>
                 val betRate = (x._2 + x._3) / 100
