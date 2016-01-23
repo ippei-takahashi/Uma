@@ -285,9 +285,6 @@ object Main {
     val outFile = new File("result.csv")
     val pw = new PrintWriter(outFile)
 
-    var raceCount = 0.0
-    var oddTopWinCount = 0.0
-
     var betRaceCount = 0.0
     var winRaceCount = 0.0
     var betCount = 0.0
@@ -416,7 +413,8 @@ object Main {
               78.8 / (x._1.odds - 1)
           }.sum
 
-          if (shareSum > 50 && res.count(_._2.isNaN) < 3) {
+          if (shareSum > 60 && res.count(_._2.isNaN) < 3) {
+            pw.println("%010d".format(raceId.toLong))
             betRaceCount += 1
             if (stdRes.exists(x => (x._2 >= 50 || x._3 >= 45) && x._1.rank == 1)) {
               winRaceCount += 1
@@ -426,6 +424,7 @@ object Main {
                 (x._2 >= 50 || x._3 >= 45)
             }.foreach {
               x =>
+                pw.println(x, true)
                 val betRate = (x._2 + x._3) / 100
                 betCount += betRate
                 if (x._1.rank == 1) {
@@ -433,15 +432,13 @@ object Main {
                   oddsCount += x._1.odds * betRate
                 }
             }
-          }
-
-          if (removeSeq.nonEmpty && oddsTop._2 < 50 && oddsTop._3 < 45) {
-            raceCount += 1
-            if (oddsTop._1.rank == 1) {
-              oddTopWinCount += 1
+            stdRes.filterNot {
+              x =>
+                (x._2 >= 50 || x._3 >= 45)
+            }.foreach {
+              x =>
+                pw.println(x, false)
             }
-            pw.println("%010d".format(raceId.toLong))
-            stdRes.foreach(pw.println)
             pw.println
           }
         case _ =>
@@ -453,7 +450,6 @@ object Main {
     }
 
     println(betCount, betRaceCount, winRaceCount / betRaceCount, winCount / betCount, oddsCount / winCount, oddsCount / betCount)
-    println(raceCount, oddTopWinCount / raceCount)
   }
 
   def subListBeforeRaceId(raceId: Long, list: List[Data]): List[Data] = list match {
