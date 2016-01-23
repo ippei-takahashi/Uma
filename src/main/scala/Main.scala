@@ -229,7 +229,7 @@ object Main {
               odds = d(d.length - 5).toInt, time = d(d.length - 6), time3f = d(d.length - 7), raceId = raceId.toLong,
               raceType = raceType, isGoodBaba = x(11) + x(12) == 1.0 && x(7) + x(8) == 1.0)
           }.toList.sortBy(-_.raceDate)
-          val d = arr.head
+          val d = arr2.maxBy(_(2))
           val x = d(3 until data.cols - 1)
           val raceType = makeRaceType(x, raceId.toLong)
           val rank = d(d.length - 1).toInt
