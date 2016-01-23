@@ -416,7 +416,7 @@ object Main {
               78.8 / (x._1.odds - 1)
           }.sum
 
-          if (shareSum > 60 && res.count(_._2.isNaN) < 3) {
+          if (shareSum > 50 && res.count(_._2.isNaN) < 3) {
             betRaceCount += 1
             if (stdRes.exists(x => (x._2 >= 50 || x._3 >= 45) && x._1.rank == 1)) {
               winRaceCount += 1
