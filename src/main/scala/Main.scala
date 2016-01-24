@@ -220,7 +220,7 @@ object Main {
       case (raceId, arr) =>
       raceId -> arr.groupBy(_ (1)).map {
         case (horseId, arr2) =>
-          val _ :: tail = arr2.map { d =>
+          val head :: tail = arr2.map { d =>
             val raceId = d(0)
             val x = d(3 until data.cols - 1)
             val raceType = makeRaceType(x, raceId.toLong)
