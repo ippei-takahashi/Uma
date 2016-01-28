@@ -7,10 +7,10 @@ object Main {
   type Gene = DenseVector[Double]
 
   case class Data(raceDate: Int, raceType: Long, age: Int, rank: Int, odds: Double, stdTime: Double, raceId: Long,
-                  paceRank: Int, isGoodBaba: Boolean)
+                  paceRank: Int, isGoodBaba: Boolean, horseNo: Int)
 
   case class PredictData(horseId: Int, raceDate: Int, raceType: Long, age: Double, rank: Int, odds: Double, oddsFuku: Double,
-                         stdTime: Double, paceRank: Int, isGoodBaba: Boolean, prevDataList: Seq[Data])
+                         stdTime: Double, paceRank: Int, isGoodBaba: Boolean, horseNo: Int, prevDataList: Seq[Data])
 
   val CATEGORY_SHIBA_SHORT = 0
 
@@ -21,6 +21,8 @@ object Main {
   val CATEGORY_SHIBA_LONG = 3
 
   val CATEGORY_SHIBA_VERY_LONG = 4
+
+  val CATEGORY_SHIBA_VERY_VERY_LONG = 9
 
   val CATEGORY_DIRT_SHORT = 5
 
@@ -36,69 +38,75 @@ object Main {
 
   private[this] val timeRaceMap = Map[Int, List[(Int, Double, Double)]](
     CATEGORY_SHIBA_SHORT -> List(
-      (1011200, 58.4, 1.6),
-      (2011200, 58.75, 1.6),
-      (3011200, 58.05, 1.6),
-      (4011200, 58.2, 1.6),
-      (6111200, 58.0, 1.6),
-      (7011200, 58.2, 1.6),
-      (8011200, 57.55, 1.6),
-      (9011200, 58.1, 1.6),
-      (10011200, 57.8, 1.6)
+      (1011200, 58.45, 1.7),
+      (2011200, 58.75, 1.7),
+      (3011200, 58.1, 1.7),
+      (4011200, 58.2, 1.7),
+      (6111200, 58.0, 1.7),
+      (7011200, 58.25, 1.7),
+      (8011200, 57.6, 1.7),
+      (9011200, 58.1, 1.7),
+      (10011200, 57.85, 1.7)
     ),
     CATEGORY_SHIBA_MIDDLE -> List(
-      (4011400, 62.4, 1.7),
-      (5011400, 61.7, 1.7),
-      (7011400, 62.9, 1.7),
-      (8011400, 62.1, 1.7),
-      (8111400, 61.9, 1.7),
-      (9011400, 62.7, 1.7)
+      (4011400, 62.4, 1.8),
+      (5011400, 61.7, 1.8),
+      (7011400, 62.9, 1.8),
+      (8011400, 62.1, 1.8),
+      (8111400, 61.9, 1.8),
+      (9011400, 62.8, 1.8)
     ),
     CATEGORY_SHIBA_SEMI_LONG -> List(
-      (1011500, 65.0, 1.75),
+      (1011500, 65.0, 1.85),
 
-      (4111600, 65.7, 1.8),
-      (5011600, 66.3, 1.8),
-      (6111600, 66.9, 1.8),
-      (7011600, 67.4, 1.8),
-      (8011600, 66.6, 1.8),
-      (8111600, 66.5, 1.8),
-      (9111600, 66.6, 1.8)
+      (4111600, 65.7, 1.9),
+      (5011600, 66.3, 1.9),
+      (6111600, 66.9, 1.9),
+      (7011600, 67.4, 1.9),
+      (8011600, 66.6, 1.9),
+      (8111600, 66.45, 1.9),
+      (9111600, 66.55, 1.9)
     ),
     CATEGORY_SHIBA_LONG -> List(
-      (1011800, 72.3, 2.0),
-      (2011800, 72.7, 2.0),
-      (3011800, 71.9, 2.0),
-      (4111800, 70.5, 2.0),
-      (5011800, 71.1, 2.0),
-      (6011800, 72.1, 2.0),
-      (8111800, 71.2, 2.0),
-      (9111800, 71.3, 2.0),
-      (10011800, 71.6, 2.0)
+      (1011800, 72.2, 2.0),
+      (2011800, 72.6, 2.0),
+      (3011800, 71.8, 2.0),
+      (4111800, 70.4, 2.0),
+      (5011800, 71.0, 2.0),
+      (6011800, 72.0, 2.0),
+      (8111800, 71.15, 2.0),
+      (9111800, 71.2, 2.0),
+      (10011800, 71.5, 2.0)
     ),
     CATEGORY_SHIBA_VERY_LONG -> List(
-      (1012000, 76.7, 2.2),
-      (2012000, 77.2, 2.2),
-      (3012000, 76.1, 2.2),
-      (4012000, 76.1, 2.2),
-      (4112000, 75.1, 2.2),
-      (5012000, 75.7, 2.2),
-      (6012000, 76.5, 2.2),
-      (7012000, 76.8, 2.2),
-      (8012000, 75.7, 2.2),
-      (9012000, 76.7, 2.2),
-      (10012000, 76.0, 2.2),
+      (1012000, 76.65, 2.1),
+      (2012000, 77.2, 2.1),
+      (3012000, 76.1, 2.1),
+      (4012000, 76.15, 2.1),
+      (4112000, 75.05, 2.1),
+      (5012000, 75.65, 2.1),
+      (6012000, 76.45, 2.1),
+      (7012000, 76.85, 2.1),
+      (8012000, 75.65, 2.1),
+      (9012000, 76.65, 2.1),
+      (10012000, 75.95, 2.1)
+    ),
+    CATEGORY_SHIBA_VERY_VERY_LONG -> List(
+      (4012200, 80.65, 2.2),
+      (6112200, 81.0, 2.2),
+      (7012200, 81.75, 2.2),
+      (8112200, 80.25, 2.2),
+      (9012200, 81.25, 2.2),
 
-      (4012200, 80.6, 2.35),
-      (6112200, 81.0, 2.35),
-      (9012200, 81.3, 2.35),
-      (8112200, 80.4, 2.35),
+      (4012400, 85.25, 2.3),
+      (5012400, 85.0, 2.3),
+      (8112400, 84.65, 2.3),
+      (9112400, 85.5, 2.3),
 
-      (5012400, 84.9, 2.4),
-      (8112400, 84.7, 2.4),
-      (9112400, 85.4, 2.4),
+      (6012500, 88.0, 2.35),
 
-      (3012600, 89.9, 2.55)
+      (3012600, 90.1, 2.4),
+      (10012600, 89.95, 2.4)
     ),
     CATEGORY_DIRT_SHORT -> List(
       (1001000, 56.15, 1.7),
@@ -188,13 +196,16 @@ object Main {
             }
             val time = d(d.length - 6)
             val time3f = d(d.length - 7)
-            val stdTime = time / 3 + time3f + (if (paceRank <= 6)
-              0.1 * (paceRank - 6)
+            val dist = raceType % 10000
+            val positionBonus = if (paceRank <= 6)
+              0.1 * (paceRank - 6) * Math.pow(dist / 1000, 0.3)
             else
-              0.05 * (paceRank - 6)
-              )
+              0.05 * (paceRank - 6) * Math.pow(dist / 1000, 0.3)
+            val horseNo = x(1).toInt
+            val stdTime = time / 3 + time3f + positionBonus
             new PredictData(horseId = d(1).toInt, raceDate = d(2).toInt, age = d(3).toInt, rank = rank,
-              odds = d(d.length - 5), oddsFuku = oddsFuku, stdTime = stdTime, raceType = raceType, isGoodBaba = x(11) + x(12) == 1.0 && x(7) + x(8) == 1.0,
+              odds = d(d.length - 5), oddsFuku = oddsFuku, stdTime = stdTime, raceType = raceType,
+              isGoodBaba = x(11) + x(12) == 1.0 && x(7) + x(8) == 1.0, horseNo = horseNo,
               paceRank = paceRank, prevDataList = Nil)
         }
 
@@ -218,14 +229,18 @@ object Main {
           val rank = d(d.length - 1).toInt
           val time = d(d.length - 6)
           val time3f = d(d.length - 7)
-          val stdTime = time / 3 + time3f + (if (paceRank <= 6)
-            0.1 * (paceRank - 6)
+          val dist = raceType % 10000
+          val positionBonus = if (paceRank <= 6)
+            0.1 * (paceRank - 6) * Math.pow(dist / 1000, 0.3)
           else
-            0.05 * (paceRank - 6)
-            )
+            0.05 * (paceRank - 6) * Math.pow(dist / 1000, 0.3)
+          val horseNo = x(1).toInt
+          val insideBonus = 0 * (horseNo - 6)
+          val stdTime = time / 3 + time3f + positionBonus + insideBonus
           new Data(raceDate = d(2).toInt, age = d(3).toInt, rank = rank,
             odds = d(d.length - 5).toInt, stdTime = stdTime, raceId = raceId.toLong,
-            raceType = raceType, paceRank = paceRank, isGoodBaba = x(11) + x(12) == 1.0 && x(7) + x(8) == 1.0)
+            raceType = raceType, paceRank = paceRank, isGoodBaba = x(11) + x(12) == 1.0 && x(7) + x(8) == 1.0,
+            horseNo = horseNo)
         }.toList
     }
 
@@ -258,7 +273,7 @@ object Main {
               raceTimeMap.put(data.raceType, stdTime :: raceTimeMap.getOrElse(data.raceType, Nil))
             }
         }
-        (CATEGORY_SHIBA_SHORT to CATEGORY_SHIBA_SHORT).foreach {
+        (CATEGORY_SHIBA_VERY_LONG to CATEGORY_SHIBA_VERY_LONG).foreach {
           raceCategory =>
             val timeRace = timeRaceMap(raceCategory)
             val infos = for {
@@ -327,7 +342,8 @@ object Main {
             case (horse, prevStdList) =>
               val time = prevStdList.sortBy(-_) match {
                 case Nil => Double.NaN
-                case list => mean(list.take(3))
+                case list =>
+                  mean(list.take(3))
               }
               (horse.copy(prevDataList = Nil), time)
           }.sortBy(_._1.odds).toSeq
@@ -410,8 +426,10 @@ object Main {
       CATEGORY_SHIBA_SEMI_LONG
     case (1, dist) if dist <= 1800 =>
       CATEGORY_SHIBA_LONG
-    case (1, dist) =>
+    case (1, dist) if dist <= 2000 =>
       CATEGORY_SHIBA_VERY_LONG
+    case (1, dist) =>
+      CATEGORY_SHIBA_VERY_VERY_LONG
     case (0, dist) if dist <= 1200 =>
       CATEGORY_DIRT_SHORT
     case (0, dist) if dist <= 1400 =>
@@ -433,6 +451,8 @@ object Main {
       Some(CATEGORY_SHIBA_VERY_LONG)
     case CATEGORY_SHIBA_VERY_LONG =>
       Some(CATEGORY_SHIBA_LONG)
+    case CATEGORY_SHIBA_VERY_VERY_LONG =>
+      Some(CATEGORY_SHIBA_VERY_LONG)
     case CATEGORY_DIRT_SHORT =>
       Some(CATEGORY_DIRT_MIDDLE)
     case CATEGORY_DIRT_MIDDLE =>
