@@ -369,7 +369,7 @@ object Main {
               78.8 / (x._1.odds - 1)
           }.sum
 
-          if (shareSum > 55 && res.count(_._2.isNaN) < 3) {
+          if (shareSum > 60 && res.count(_._2.isNaN) < 3) {
             pw.println("%010d".format(raceId.toLong))
             betRaceCount += 1
             if (stdRes.exists(x => x._2 >= 45 && x._1.rank == 1)) {
