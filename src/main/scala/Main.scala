@@ -26,21 +26,21 @@ object Main {
 
   private [this] val  CATEGORY_SHIBA_VERY_LONG = 4
 
-  private [this] val  CATEGORY_SHIBA_VERY_VERY_LONG = 9
+  private [this] val  CATEGORY_SHIBA_VERY_VERY_LONG = 5
 
-  private [this] val  CATEGORY_DIRT_SHORT = 5
+  private [this] val  CATEGORY_DIRT_SHORT = 6
 
-  private [this] val  CATEGORY_DIRT_MIDDLE = 6
+  private [this] val  CATEGORY_DIRT_MIDDLE = 7
 
-  private [this] val  CATEGORY_DIRT_SEMI_LONG = 7
+  private [this] val  CATEGORY_DIRT_SEMI_LONG = 8
 
-  private [this] val  CATEGORY_DIRT_LONG = 8
+  private [this] val  CATEGORY_DIRT_LONG = 9
 
   private[this] val raceTimeMap = scala.collection.mutable.Map[Long, List[Double]]()
 
   private[this] var maxTimeRaceList: List[Long] = Nil
 
-  private[this] val timeRaceMap = Map[Int, List[(Int, Double, Double)]](
+  private[this] val timeRaceMap = scala.collection.mutable.Map[Int, List[(Int, Double, Double)]](
     CATEGORY_SHIBA_SHORT -> List(
       (1011200, 58.45, 1.5),
       (2011200, 58.75, 1.5),
@@ -412,10 +412,12 @@ object Main {
 
                       timeErrorRaceMap.foreach {
                         case (category, seq) =>
-                          seq.map {
-                            case (raceType, error) =>
-                              raceType -> (error +) /////
-                          }
+                          timeErrorRaceMap.put(category ,seq.map {
+                            case (raceType, error) if raceType == data.raceType =>
+                              raceType -> (error + (stdScore - stdScore_) * LEARNING_RATE)
+                            case (raceType, error)  =>
+                              raceType -> error
+                          })
                       }
                     }
                 }
@@ -424,8 +426,22 @@ object Main {
           case _ =>
         }
 
+        timeErrorRaceMap.foreach {
+          case (category, seq) =>
+            val timeRace = timeRaceMap(category)
+            timeRaceMap.put(
+              category, seq.map {
+                case (raceType, error) =>
+                  val (_, m, s) = timeRace.find(_._1 == raceType).get
+                  (raceType, m + error, s)
+              })
+            timeErrorRaceMap.put(category ,seq.map {
+              case (raceType, error) =>
+                raceType -> (error * 0.8)
+            })
+        }
 
-        if (i % 50 == 0) {
+        if (i % 20 == 0) {
           var betRaceCount = 0.0
           var winRaceCount = 0.0
           var betCount = 0.0
@@ -513,9 +529,9 @@ object Main {
             case _ =>
           }
           println(betCount, betRaceCount, winRaceCount / betRaceCount, winCount / betCount, oddsCount / winCount, oddsCount / betCount)
-          timeRaceMap.foreach {
+          timeRaceMap.toSeq.sortBy(_._1).foreach {
             case (_ , seq) =>
-              seq.foreach {
+              seq.sortBy(_._1 % 10000).foreach {
                 pw.println
               }
           }
