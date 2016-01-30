@@ -12,25 +12,29 @@ object Main {
   case class PredictData(horseId: Int, raceDate: Int, raceType: Long, age: Double, rank: Int, odds: Double, oddsFuku: Double,
                          stdTime: Double, paceRank: Int, isGoodBaba: Boolean, horseNo: Int, prevDataList: Seq[Data])
 
-  val CATEGORY_SHIBA_SHORT = 0
+  private [this] val LEARNING_RATE = 0.00001
 
-  val CATEGORY_SHIBA_MIDDLE = 1
+  private [this] val NUM_OF_LOOPS = 1000000
 
-  val CATEGORY_SHIBA_SEMI_LONG = 2
+  private [this] val  CATEGORY_SHIBA_SHORT = 0
 
-  val CATEGORY_SHIBA_LONG = 3
+  private [this] val  CATEGORY_SHIBA_MIDDLE = 1
 
-  val CATEGORY_SHIBA_VERY_LONG = 4
+  private [this] val  CATEGORY_SHIBA_SEMI_LONG = 2
 
-  val CATEGORY_SHIBA_VERY_VERY_LONG = 9
+  private [this] val  CATEGORY_SHIBA_LONG = 3
 
-  val CATEGORY_DIRT_SHORT = 5
+  private [this] val  CATEGORY_SHIBA_VERY_LONG = 4
 
-  val CATEGORY_DIRT_MIDDLE = 6
+  private [this] val  CATEGORY_SHIBA_VERY_VERY_LONG = 9
 
-  val CATEGORY_DIRT_SEMI_LONG = 7
+  private [this] val  CATEGORY_DIRT_SHORT = 5
 
-  val CATEGORY_DIRT_LONG = 8
+  private [this] val  CATEGORY_DIRT_MIDDLE = 6
+
+  private [this] val  CATEGORY_DIRT_SEMI_LONG = 7
+
+  private [this] val  CATEGORY_DIRT_LONG = 8
 
   private[this] val raceTimeMap = scala.collection.mutable.Map[Long, List[Double]]()
 
@@ -38,75 +42,75 @@ object Main {
 
   private[this] val timeRaceMap = Map[Int, List[(Int, Double, Double)]](
     CATEGORY_SHIBA_SHORT -> List(
-      (1011200, 58.45, 1.7),
-      (2011200, 58.75, 1.7),
-      (3011200, 58.1, 1.7),
-      (4011200, 58.2, 1.7),
-      (6111200, 58.0, 1.7),
-      (7011200, 58.25, 1.7),
-      (8011200, 57.6, 1.7),
-      (9011200, 58.1, 1.7),
-      (10011200, 57.85, 1.7)
+      (1011200, 58.45, 1.5),
+      (2011200, 58.75, 1.5),
+      (3011200, 58.1, 1.5),
+      (4011200, 58.2, 1.5),
+      (6111200, 58.0, 1.5),
+      (7011200, 58.25, 1.5),
+      (8011200, 57.6, 1.5),
+      (9011200, 58.1, 1.5),
+      (10011200, 57.85, 1.5)
     ),
     CATEGORY_SHIBA_MIDDLE -> List(
-      (4011400, 62.4, 1.8),
-      (5011400, 61.7, 1.8),
-      (7011400, 62.9, 1.8),
-      (8011400, 62.1, 1.8),
-      (8111400, 61.9, 1.8),
-      (9011400, 62.8, 1.8)
+      (4011400, 62.4, 1.6),
+      (5011400, 61.7, 1.6),
+      (7011400, 62.9, 1.6),
+      (8011400, 62.1, 1.6),
+      (8111400, 61.9, 1.6),
+      (9011400, 62.8, 1.6)
     ),
     CATEGORY_SHIBA_SEMI_LONG -> List(
-      (1011500, 65.0, 1.85),
+      (1011500, 65.0, 1.65),
 
-      (4111600, 65.7, 1.9),
-      (5011600, 66.3, 1.9),
-      (6111600, 66.9, 1.9),
-      (7011600, 67.4, 1.9),
-      (8011600, 66.6, 1.9),
-      (8111600, 66.45, 1.9),
-      (9111600, 66.55, 1.9)
+      (4111600, 65.7, 1.7),
+      (5011600, 66.3, 1.7),
+      (6111600, 66.9, 1.7),
+      (7011600, 67.4, 1.7),
+      (8011600, 66.6, 1.7),
+      (8111600, 66.45, 1.7),
+      (9111600, 66.55, 1.7)
     ),
     CATEGORY_SHIBA_LONG -> List(
-      (1011800, 72.2, 2.0),
-      (2011800, 72.6, 2.0),
-      (3011800, 71.8, 2.0),
-      (4111800, 70.4, 2.0),
-      (5011800, 71.0, 2.0),
-      (6011800, 72.0, 2.0),
-      (8111800, 71.15, 2.0),
-      (9111800, 71.2, 2.0),
-      (10011800, 71.5, 2.0)
+      (1011800, 72.2, 1.8),
+      (2011800, 72.6, 1.8),
+      (3011800, 71.8, 1.8),
+      (4111800, 70.4, 1.8),
+      (5011800, 71.0, 1.8),
+      (6011800, 71.8, 1.8),
+      (8111800, 71.15, 1.8),
+      (9111800, 71.2, 1.8),
+      (10011800, 71.5, 1.8)
     ),
     CATEGORY_SHIBA_VERY_LONG -> List(
-      (1012000, 76.65, 2.1),
-      (2012000, 77.2, 2.1),
-      (3012000, 76.1, 2.1),
-      (4012000, 76.15, 2.1),
-      (4112000, 75.05, 2.1),
-      (5012000, 75.65, 2.1),
-      (6012000, 76.45, 2.1),
-      (7012000, 76.85, 2.1),
-      (8012000, 75.65, 2.1),
-      (9012000, 76.65, 2.1),
-      (10012000, 75.95, 2.1)
+      (1012000, 76.65, 1.9),
+      (2012000, 77.2, 1.9),
+      (3012000, 76.1, 1.9),
+      (4012000, 76.15, 1.9),
+      (4112000, 75.05, 1.9),
+      (5012000, 75.65, 1.9),
+      (6012000, 76.45, 1.9),
+      (7012000, 76.85, 1.9),
+      (8012000, 75.65, 1.9),
+      (9012000, 76.65, 1.9),
+      (10012000, 75.95, 1.9)
     ),
     CATEGORY_SHIBA_VERY_VERY_LONG -> List(
-      (4012200, 80.65, 2.2),
-      (6112200, 81.0, 2.2),
-      (7012200, 81.75, 2.2),
-      (8112200, 80.25, 2.2),
-      (9012200, 81.25, 2.2),
+      (4012200, 80.65, 2.0),
+      (6112200, 81.0, 2.0),
+      (7012200, 81.75, 2.0),
+      (8112200, 80.25, 2.0),
+      (9012200, 81.25, 2.0),
 
-      (4012400, 85.25, 2.3),
-      (5012400, 85.0, 2.3),
-      (8112400, 84.65, 2.3),
-      (9112400, 85.5, 2.3),
+      (4012400, 85.25, 2.1),
+      (5012400, 85.0, 2.1),
+      (8112400, 84.65, 2.1),
+      (9112400, 85.5, 2.1),
 
-      (6012500, 88.0, 2.35),
+      (6012500, 88.0, 2.15),
 
-      (3012600, 90.1, 2.4),
-      (10012600, 89.95, 2.4)
+      (3012600, 90.1, 2.2),
+      (10012600, 89.95, 2.2)
     ),
     CATEGORY_DIRT_SHORT -> List(
       (1001000, 56.15, 1.7),
@@ -150,6 +154,123 @@ object Main {
       (9002000, 80.5, 2.35),
 
       (5002100, 82.4, 2.4)
+    )
+  )
+
+  private[this] val timeErrorRaceMap = scala.collection.mutable.Map[Int, List[(Int, Double)]](
+    CATEGORY_SHIBA_SHORT -> List(
+      (1011200, 0.0),
+      (2011200, 0.0),
+      (3011200, 0.0),
+      (4011200, 0.0),
+      (6111200, 0.0),
+      (7011200, 0.0),
+      (8011200, 0.0),
+      (9011200, 0.0),
+      (10011200, 0.0)
+    ),
+    CATEGORY_SHIBA_MIDDLE -> List(
+      (4011400, 0.0),
+      (5011400, 0.0),
+      (7011400, 0.0),
+      (8011400, 0.0),
+      (8111400, 0.0),
+      (9011400, 0.0)
+    ),
+    CATEGORY_SHIBA_SEMI_LONG -> List(
+      (1011500, 0.0),
+
+      (4111600, 0.0),
+      (5011600, 0.0),
+      (6111600, 0.0),
+      (7011600, 0.0),
+      (8011600, 0.0),
+      (8111600, 0.0),
+      (9111600, 0.0)
+    ),
+    CATEGORY_SHIBA_LONG -> List(
+      (1011800, 0.0),
+      (2011800, 0.0),
+      (3011800, 0.0),
+      (4111800, 0.0),
+      (5011800, 0.0),
+      (6011800, 0.0),
+      (8111800, 0.0),
+      (9111800, 0.0),
+      (10011800, 0.0)
+    ),
+    CATEGORY_SHIBA_VERY_LONG -> List(
+      (1012000, 0.0),
+      (2012000, 0.0),
+      (3012000, 0.0),
+      (4012000, 0.0),
+      (4112000, 0.0),
+      (5012000, 0.0),
+      (6012000, 0.0),
+      (7012000, 0.0),
+      (8012000, 0.0),
+      (9012000, 0.0),
+      (10012000, 0.0)
+    ),
+    CATEGORY_SHIBA_VERY_VERY_LONG -> List(
+      (4012200, 0.0),
+      (6112200, 0.0),
+      (7012200, 0.0),
+      (8112200, 0.0),
+      (9012200, 0.0),
+
+      (4012400, 0.0),
+      (5012400, 0.0),
+      (8112400, 0.0),
+      (9112400, 0.0),
+
+      (6012500, 0.0),
+
+      (3012600, 0.0),
+      (10012600, 0.0)
+    ),
+    CATEGORY_DIRT_SHORT -> List(
+      (1001000, 0.0),
+      (2001000, 0.0),
+      (10001000, 0.0),
+
+      (3001150, 0.0),
+
+      (4001200, 0.0),
+      (6001200, 0.0),
+      (7001200, 0.0),
+      (8001200, 0.0),
+      (9001200, 0.0)
+    ),
+    CATEGORY_DIRT_MIDDLE -> List(
+      (5001300, 0.0),
+
+      (5001400, 0.0),
+      (7001400, 0.0),
+      (8001400, 0.0),
+      (9001400, 0.0)
+    ),
+    CATEGORY_DIRT_SEMI_LONG -> List(
+      (5001600, 0.0),
+
+      (1001700, 0.0),
+      (2001700, 0.0),
+      (3001700, 0.0),
+      (7001700, 0.0),
+      (10001700, 0.0)
+    ),
+    CATEGORY_DIRT_LONG -> List(
+      (4001800, 0.0),
+      (6001800, 0.0),
+      (7001800, 0.0),
+      (8001800, 0.0),
+      (9001800, 0.0),
+
+      (8001900, 0.0),
+
+      (9002000, 0.0),
+
+      (5002100, 0.0)
     )
   )
 
@@ -250,162 +371,159 @@ object Main {
           pred =>
             pred.copy(prevDataList = horseMap(pred.horseId).filter(x => x.raceDate < pred.raceDate && x.isGoodBaba))
         }
-    }
+    }.filter(_._2.head.isGoodBaba)
 
-    val outFile = new File("result.csv")
+    val outFile = new File("studyResult.csv")
     val pw = new PrintWriter(outFile)
 
-    var betRaceCount = 0.0
-    var winRaceCount = 0.0
-    var betCount = 0.0
-    var winCount = 0.0
-    var oddsCount = 0.0
+    for (i <- 0 until NUM_OF_LOOPS) {
+      try {
+        raceSeq.foreach {
+          case (raceId, horses) =>
+            val raceCategory = getRaceCategory(horses.head.raceType)
+            val secondaryRaceCategory = getSecondaryRaceCategory(raceCategory)
+            val raceDate = horses.head.raceDate
 
-    horseMap.foreach {
-      case (_, races) =>
-        races.filter(x => x.isGoodBaba && timeRaceFlattenMap.get(x.raceType).isDefined).foreach {
-          data =>
-            val raceCategory = getRaceCategory(data.raceType)
             val timeRace = timeRaceMap(raceCategory)
-            if (races.count(x => timeRace.exists(_._1 == x.raceType)) > 3) {
-              val (m, s) = timeRaceFlattenMap(data.raceType)
-              val stdTime = (m - data.stdTime) / s * 10 + 50
-              raceTimeMap.put(data.raceType, stdTime :: raceTimeMap.getOrElse(data.raceType, Nil))
-            }
-        }
-        (CATEGORY_SHIBA_VERY_LONG to CATEGORY_SHIBA_VERY_LONG).foreach {
-          raceCategory =>
-            val timeRace = timeRaceMap(raceCategory)
-            val infos = for {
-              data <- races
-              time <- timeRace.find(_._1 == data.raceType).toList
-            } yield {
-              val m = time._2
-              val s = time._3
+            val timeRaceSecondary = secondaryRaceCategory.map(timeRaceMap)
 
-              (data.raceType, (m - data.stdTime) / s * 10 + 50)
-            }
-            if (infos.length > 3) {
-              maxTimeRaceList = infos.maxBy(_._2)._1 :: maxTimeRaceList
-            }
-        }
+            timeRace.find(_._1 == horses.head.raceType) match {
+              case Some((_, m_, s_)) =>
+                horses.foreach {
+                  horse =>
+                    val stdScore_ = (m_ - horse.stdTime) / s_ * 10 + 50
 
-    }
-    Seq(
-      "maxTimeRace.csv" ->(maxTimeRaceList.groupBy(x => x).map {
-        case (key, value) =>
-          key.asInstanceOf[Long] -> value.map(_.toDouble)
-      }, raceTimeMap)
-    ).foreach {
-      case (fileName, (map1, map2)) =>
-        val mat = DenseMatrix(map1.toArray.map {
-          case (key, list) =>
-            val m = mean(map2(key))
-            val m2 = mean(map2(key).sortBy(-_).take(map2(key).length / 100))
-            (key.toDouble, list.length.toDouble / map2(key).length.toDouble, m, m2)
-        }.sortBy(_._2): _*)
-        csvwrite(new File(fileName), mat)
-    }
+                    for {
+                      data <- horse.prevDataList if raceDate - data.raceDate < 10000
+                      time <- timeRace.find(_._1 == data.raceType).toList match {
+                        case Nil =>
+                          timeRaceSecondary.flatMap {
+                            secondary =>
+                              secondary.find(_._1 == data.raceType).toList
+                          }
+                        case list =>
+                          list
+                      }
+                    } yield {
+                      val m = time._2
+                      val s = time._3
 
-    try {
-      raceSeq.foreach {
-        case (raceId, horses) if horses.head.isGoodBaba =>
-          val raceCategory = getRaceCategory(horses.head.raceType)
-          val secondaryRaceCategory = getSecondaryRaceCategory(raceCategory)
-          val raceDate = horses.head.raceDate
+                      val stdScore = (m - data.stdTime) / s * 10 + 50
 
-          val timeRace = timeRaceMap(raceCategory)
-          val timeRaceSecondary = secondaryRaceCategory.map(timeRaceMap)
-
-          val timeList = horses.map {
-            horse =>
-              for {
-                data <- horse.prevDataList if raceDate - data.raceDate < 10000
-                time <- timeRace.find(_._1 == data.raceType).toList match {
-                  case Nil =>
-                    timeRaceSecondary.toList.flatMap {
-                      secondary =>
-                        secondary.find(_._1 == data.raceType).toList
+                      timeErrorRaceMap.foreach {
+                        case (category, seq) =>
+                          seq.map {
+                            case (raceType, error) =>
+                              raceType -> (error +) /////
+                          }
+                      }
                     }
-                  case list =>
-                    list
                 }
-              } yield {
-                val m = time._2
-                val s = time._3
+              case _ =>
+            }
+          case _ =>
+        }
 
-                (m - data.stdTime) / s * 10 + 50
+
+        if (i % 50 == 0) {
+          var betRaceCount = 0.0
+          var winRaceCount = 0.0
+          var betCount = 0.0
+          var winCount = 0.0
+          var oddsCount = 0.0
+          raceSeq.foreach {
+            case (raceId, horses) =>
+              val raceCategory = getRaceCategory(horses.head.raceType)
+              val secondaryRaceCategory = getSecondaryRaceCategory(raceCategory)
+              val raceDate = horses.head.raceDate
+
+              val timeRace = timeRaceMap(raceCategory)
+              val timeRaceSecondary = secondaryRaceCategory.map(timeRaceMap)
+
+              val timeList = horses.map {
+                horse =>
+                  for {
+                    data <- horse.prevDataList if raceDate - data.raceDate < 10000
+                    time <- timeRace.find(_._1 == data.raceType).toList match {
+                      case Nil =>
+                        timeRaceSecondary.flatMap {
+                          secondary =>
+                            secondary.find(_._1 == data.raceType).toList
+                        }
+                      case list =>
+                        list
+                    }
+                  } yield {
+                    val m = time._2
+                    val s = time._3
+
+                    (m - data.stdTime) / s * 10 + 50
+                  }
+              }
+
+              val res = horses.zip(timeList).map {
+                case (horse, prevStdList) =>
+                  val time = prevStdList.sortBy(-_) match {
+                    case Nil => Double.NaN
+                    case list =>
+                      mean(list.take(3))
+                  }
+                  (horse.copy(prevDataList = Nil), time)
+              }.sortBy(_._1.odds).toSeq
+
+              val (timeMean, timeStd) = res.toList.map(_._2).filterNot(_.isNaN) match {
+                case Nil => (Double.NaN, Double.NaN)
+                case list => (mean(list), stddev(list))
+              }
+              val stdRes = res.map {
+                case (horse, time) =>
+                  (horse, (time - timeMean) / timeStd * 10 + 50)
+              }
+
+              val removeSeq = if (timeMean.isNaN)
+                Nil
+              else
+                stdRes.filter {
+                  x => x._2 < 45
+                }
+
+              val shareSum = removeSeq.map {
+                x =>
+                  78.8 / (x._1.odds - 1)
+              }.sum
+
+              if (shareSum > 55 && res.count(_._2.isNaN) < 3) {
+                betRaceCount += 1
+                if (stdRes.exists(x => x._2 >= 45 && x._1.rank == 1)) {
+                  winRaceCount += 1
+                }
+                stdRes.filter {
+                  x =>
+                    x._2 >= 45
+                }.foreach {
+                  x =>
+                    val betRate = x._2 / 50
+                    betCount += betRate
+                    if (x._1.rank == 1) {
+                      winCount += betRate
+                      oddsCount += x._1.odds * betRate
+                    }
+                }
+              }
+            case _ =>
+          }
+          println(betCount, betRaceCount, winRaceCount / betRaceCount, winCount / betCount, oddsCount / winCount, oddsCount / betCount)
+          timeRaceMap.foreach {
+            case (_ , seq) =>
+              seq.foreach {
+                pw.println
               }
           }
-
-          val res = horses.zip(timeList).map {
-            case (horse, prevStdList) =>
-              val time = prevStdList.sortBy(-_) match {
-                case Nil => Double.NaN
-                case list =>
-                  mean(list.take(3))
-              }
-              (horse.copy(prevDataList = Nil), time)
-          }.sortBy(_._1.odds).toSeq
-
-          val (timeMean, timeStd) = res.toList.map(_._2).filterNot(_.isNaN) match {
-            case Nil => (Double.NaN, Double.NaN)
-            case list => (mean(list), stddev(list))
-          }
-          val stdRes = res.map {
-            case (horse, time) =>
-              (horse, (time - timeMean) / timeStd * 10 + 50)
-          }
-
-          val removeSeq = if (timeMean.isNaN)
-            Nil
-          else
-            stdRes.filter {
-              x => x._2 < 45
-            }
-
-          val shareSum = removeSeq.map {
-            x =>
-              78.8 / (x._1.odds - 1)
-          }.sum
-
-          if (shareSum > 60 && res.count(_._2.isNaN) < 3) {
-            pw.println("%010d".format(raceId.toLong))
-            betRaceCount += 1
-            if (stdRes.exists(x => x._2 >= 45 && x._1.rank == 1)) {
-              winRaceCount += 1
-            }
-            stdRes.filter {
-              x =>
-                x._2 >= 45
-            }.foreach {
-              x =>
-                pw.println(x, true)
-                val betRate = x._2 / 50
-                betCount += betRate
-                if (x._1.rank == 1) {
-                  winCount += betRate
-                  oddsCount += x._1.odds * betRate
-                }
-            }
-            stdRes.filterNot {
-              x =>
-                x._2 >= 45
-            }.foreach {
-              x =>
-                pw.println(x, false)
-            }
-            pw.println
-          }
-        case _ =>
+        }
+      } finally {
+        pw.close()
       }
-    } catch {
-      case e: Exception =>
-    } finally {
-      pw.close
     }
-
-    println(betCount, betRaceCount, winRaceCount / betRaceCount, winCount / betCount, oddsCount / winCount, oddsCount / betCount)
   }
 
   def subListBeforeRaceId(raceId: Long, list: List[Data]): List[Data] = list match {
@@ -442,25 +560,25 @@ object Main {
 
   def getSecondaryRaceCategory(raceCategory: Int) = raceCategory match {
     case CATEGORY_SHIBA_SHORT =>
-      None
+      List(CATEGORY_SHIBA_MIDDLE)
     case CATEGORY_SHIBA_MIDDLE =>
-      None
+      List(CATEGORY_SHIBA_SHORT, CATEGORY_SHIBA_SEMI_LONG)
     case CATEGORY_SHIBA_SEMI_LONG =>
-      Some(CATEGORY_SHIBA_MIDDLE)
+      List(CATEGORY_SHIBA_LONG)
     case CATEGORY_SHIBA_LONG =>
-      Some(CATEGORY_SHIBA_VERY_LONG)
+      List(CATEGORY_SHIBA_VERY_LONG, CATEGORY_SHIBA_VERY_VERY_LONG)
     case CATEGORY_SHIBA_VERY_LONG =>
-      Some(CATEGORY_SHIBA_LONG)
+      List(CATEGORY_SHIBA_LONG, CATEGORY_SHIBA_LONG)
     case CATEGORY_SHIBA_VERY_VERY_LONG =>
-      Some(CATEGORY_SHIBA_VERY_LONG)
+      List(CATEGORY_SHIBA_VERY_LONG)
     case CATEGORY_DIRT_SHORT =>
-      Some(CATEGORY_DIRT_MIDDLE)
+      List(CATEGORY_DIRT_MIDDLE)
     case CATEGORY_DIRT_MIDDLE =>
-      None
+      List(CATEGORY_DIRT_SEMI_LONG)
     case CATEGORY_DIRT_SEMI_LONG =>
-      None
+      List(CATEGORY_DIRT_LONG)
     case CATEGORY_DIRT_LONG =>
-      None
+      Nil
   }
 
   def makeRaceType(vector: DenseVector[Double], raceId: Long): Long = {
