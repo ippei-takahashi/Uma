@@ -190,10 +190,9 @@ object Main {
               else
                 0.05 * (paceRank - 6) * Math.pow(dist / 1000, 0.3)
               val horseNo = x(1).toInt
-              val insideBonus = 0 * (horseNo - 6)
-              val stdTime = time / 3 + time3f + positionBonus + insideBonus
+              val stdTime = time / 3 + time3f + positionBonus
               new Data(raceDate = d(2).toInt, age = d(3).toInt, rank = rank,
-                odds = d(d.length - 5).toInt, stdTime = stdTime, raceId = raceId.toLong,
+                odds = d(d.length - 5), stdTime = stdTime, raceId = raceId.toLong,
                 raceType = raceType, paceRank = paceRank, isGoodBaba = x(11) + x(12) == 1.0 && x(7) + x(8) == 1.0,
                 horseNo = horseNo)
             }.toList.sortBy(-_.raceDate)
@@ -276,7 +275,7 @@ object Main {
               78.8 / (x._1.odds - 1)
           }.sum
 
-          if (shareSum > 55 && res.count(_._2.isNaN) < 3) {
+          if (shareSum > 60 && res.count(_._2.isNaN) < 3) {
             pw.println("%010d".format(raceId.toLong))
             println("%010d".format(raceId.toLong))
             stdRes.filter {
