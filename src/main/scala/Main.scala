@@ -2,6 +2,7 @@ import java.io._
 
 import breeze.linalg._
 import breeze.stats._
+import breeze.plot._
 
 object Main {
   type Gene = DenseVector[Double]
@@ -36,9 +37,20 @@ object Main {
 
   private[this] val CATEGORY_DIRT_LONG = 9
 
-  private[this] val raceTimeMap = scala.collection.mutable.Map[Long, List[Double]]()
+  private[this] val STD_THREASHOLD = -2
 
-  private[this] var maxTimeRaceList: List[Long] = Nil
+  private[this] val SHARE_THREASHOLDS = Map[Int, Double](
+    CATEGORY_SHIBA_SHORT -> 68,
+    CATEGORY_SHIBA_MIDDLE -> 68,
+    CATEGORY_SHIBA_SEMI_LONG -> 68,
+    CATEGORY_SHIBA_LONG -> 65,
+    CATEGORY_SHIBA_VERY_LONG -> 65,
+    CATEGORY_SHIBA_VERY_VERY_LONG -> 65,
+    CATEGORY_DIRT_SHORT -> 58,
+    CATEGORY_DIRT_MIDDLE -> 58,
+    CATEGORY_DIRT_SEMI_LONG -> 55,
+    CATEGORY_DIRT_LONG -> 55
+  )
 
   private[this] val timeRaceMap = scala.collection.mutable.Map[Int, List[(Int, Double, Double)]](
     CATEGORY_SHIBA_SHORT -> List(
@@ -157,120 +169,120 @@ object Main {
     )
   )
 
-  private[this] val timeErrorRaceMap = scala.collection.mutable.Map[Int, List[(Int, Double)]](
+  private[this] val timeErrorRaceMap = scala.collection.mutable.Map[Int, List[(Int, Double, Int)]](
     CATEGORY_SHIBA_SHORT -> List(
-      (1011200, 0.0),
-      (2011200, 0.0),
-      (3011200, 0.0),
-      (4011200, 0.0),
-      (6111200, 0.0),
-      (7011200, 0.0),
-      (8011200, 0.0),
-      (9011200, 0.0),
-      (10011200, 0.0)
+      (1011200, 0.0, 0),
+      (2011200, 0.0, 0),
+      (3011200, 0.0, 0),
+      (4011200, 0.0, 0),
+      (6111200, 0.0, 0),
+      (7011200, 0.0, 0),
+      (8011200, 0.0, 0),
+      (9011200, 0.0, 0),
+      (10011200, 0.0, 0)
     ),
     CATEGORY_SHIBA_MIDDLE -> List(
-      (4011400, 0.0),
-      (5011400, 0.0),
-      (7011400, 0.0),
-      (8011400, 0.0),
-      (8111400, 0.0),
-      (9011400, 0.0)
+      (4011400, 0.0, 0),
+      (5011400, 0.0, 0),
+      (7011400, 0.0, 0),
+      (8011400, 0.0, 0),
+      (8111400, 0.0, 0),
+      (9011400, 0.0, 0)
     ),
     CATEGORY_SHIBA_SEMI_LONG -> List(
-      (1011500, 0.0),
+      (1011500, 0.0, 0),
 
-      (4111600, 0.0),
-      (5011600, 0.0),
-      (6111600, 0.0),
-      (7011600, 0.0),
-      (8011600, 0.0),
-      (8111600, 0.0),
-      (9111600, 0.0)
+      (4111600, 0.0, 0),
+      (5011600, 0.0, 0),
+      (6111600, 0.0, 0),
+      (7011600, 0.0, 0),
+      (8011600, 0.0, 0),
+      (8111600, 0.0, 0),
+      (9111600, 0.0, 0)
     ),
     CATEGORY_SHIBA_LONG -> List(
-      (1011800, 0.0),
-      (2011800, 0.0),
-      (3011800, 0.0),
-      (4111800, 0.0),
-      (5011800, 0.0),
-      (6011800, 0.0),
-      (8111800, 0.0),
-      (9111800, 0.0),
-      (10011800, 0.0)
+      (1011800, 0.0, 0),
+      (2011800, 0.0, 0),
+      (3011800, 0.0, 0),
+      (4111800, 0.0, 0),
+      (5011800, 0.0, 0),
+      (6011800, 0.0, 0),
+      (8111800, 0.0, 0),
+      (9111800, 0.0, 0),
+      (10011800, 0.0, 0)
     ),
     CATEGORY_SHIBA_VERY_LONG -> List(
-      (1012000, 0.0),
-      (2012000, 0.0),
-      (3012000, 0.0),
-      (4012000, 0.0),
-      (4112000, 0.0),
-      (5012000, 0.0),
-      (6012000, 0.0),
-      (7012000, 0.0),
-      (8012000, 0.0),
-      (9012000, 0.0),
-      (10012000, 0.0)
+      (1012000, 0.0, 0),
+      (2012000, 0.0, 0),
+      (3012000, 0.0, 0),
+      (4012000, 0.0, 0),
+      (4112000, 0.0, 0),
+      (5012000, 0.0, 0),
+      (6012000, 0.0, 0),
+      (7012000, 0.0, 0),
+      (8012000, 0.0, 0),
+      (9012000, 0.0, 0),
+      (10012000, 0.0, 0)
     ),
     CATEGORY_SHIBA_VERY_VERY_LONG -> List(
-      (4012200, 0.0),
-      (6112200, 0.0),
-      (7012200, 0.0),
-      (8112200, 0.0),
-      (9012200, 0.0),
+      (4012200, 0.0, 0),
+      (6112200, 0.0, 0),
+      (7012200, 0.0, 0),
+      (8112200, 0.0, 0),
+      (9012200, 0.0, 0),
 
-      (4012400, 0.0),
-      (5012400, 0.0),
-      (8112400, 0.0),
-      (9112400, 0.0),
+      (4012400, 0.0, 0),
+      (5012400, 0.0, 0),
+      (8112400, 0.0, 0),
+      (9112400, 0.0, 0),
 
-      (6012500, 0.0),
+      (6012500, 0.0, 0),
 
-      (3012600, 0.0),
-      (10012600, 0.0)
+      (3012600, 0.0, 0),
+      (10012600, 0.0, 0)
     ),
     CATEGORY_DIRT_SHORT -> List(
-      (1001000, 0.0),
-      (2001000, 0.0),
-      (10001000, 0.0),
+      (1001000, 0.0, 0),
+      (2001000, 0.0, 0),
+      (10001000, 0.0, 0),
 
-      (3001150, 0.0),
+      (3001150, 0.0, 0),
 
-      (4001200, 0.0),
-      (6001200, 0.0),
-      (7001200, 0.0),
-      (8001200, 0.0),
-      (9001200, 0.0)
+      (4001200, 0.0, 0),
+      (6001200, 0.0, 0),
+      (7001200, 0.0, 0),
+      (8001200, 0.0, 0),
+      (9001200, 0.0, 0)
     ),
     CATEGORY_DIRT_MIDDLE -> List(
-      (5001300, 0.0),
+      (5001300, 0.0, 0),
 
-      (5001400, 0.0),
-      (7001400, 0.0),
-      (8001400, 0.0),
-      (9001400, 0.0)
+      (5001400, 0.0, 0),
+      (7001400, 0.0, 0),
+      (8001400, 0.0, 0),
+      (9001400, 0.0, 0)
     ),
     CATEGORY_DIRT_SEMI_LONG -> List(
-      (5001600, 0.0),
+      (5001600, 0.0, 0),
 
-      (1001700, 0.0),
-      (2001700, 0.0),
-      (3001700, 0.0),
-      (7001700, 0.0),
-      (10001700, 0.0)
+      (1001700, 0.0, 0),
+      (2001700, 0.0, 0),
+      (3001700, 0.0, 0),
+      (7001700, 0.0, 0),
+      (10001700, 0.0, 0)
     ),
     CATEGORY_DIRT_LONG -> List(
-      (4001800, 0.0),
-      (6001800, 0.0),
-      (7001800, 0.0),
-      (8001800, 0.0),
-      (9001800, 0.0),
+      (4001800, 0.0, 0),
+      (6001800, 0.0, 0),
+      (7001800, 0.0, 0),
+      (8001800, 0.0, 0),
+      (9001800, 0.0, 0),
 
-      (8001900, 0.0),
+      (8001900, 0.0, 0),
 
-      (9002000, 0.0),
+      (9002000, 0.0, 0),
 
-      (5002100, 0.0)
+      (5002100, 0.0, 0)
     )
   )
 
@@ -371,8 +383,10 @@ object Main {
           pred =>
             pred.copy(prevDataList = horseMap(pred.horseId).filter(x => x.raceDate < pred.raceDate && x.isGoodBaba))
         }
-    }.filter(_._2.head.isGoodBaba)
-    val dataSize = raceSeq.map(_._2.length).sum
+    }.filter(_._2.head.isGoodBaba).groupBy(_._2.head.raceType).toSeq.flatMap {
+      case (_, seq) =>
+        seq.sortBy(arr => mean(arr._2.toList.map(_.stdTime))).take((seq.length * 0.8).toInt)
+    }
 
     for (i <- 0 until NUM_OF_LOOPS) {
       raceSeq.foreach {
@@ -410,10 +424,10 @@ object Main {
                     timeErrorRaceMap.foreach {
                       case (category, seq) =>
                         timeErrorRaceMap.put(category, seq.map {
-                          case (raceType, error) if raceType == data.raceType =>
-                            raceType -> (error + (stdScore - stdScore_) * LEARNING_RATE / dataSize)
-                          case (raceType, error) =>
-                            raceType -> error
+                          case (raceType, error, errorCount) if raceType == data.raceType =>
+                            (raceType, error + (stdScore - stdScore_) * LEARNING_RATE, errorCount + 1)
+                          case (raceType, error, errorCount) =>
+                            (raceType, error, errorCount)
                         })
                     }
                   }
@@ -423,18 +437,24 @@ object Main {
         case _ =>
       }
 
+      val (_, errorSum, errorCountSum) = timeErrorRaceMap.toSeq.flatMap(_._2).reduce[(Int, Double, Int)] {
+        case ((_, xs, ys), (_, x, y)) =>
+          (0, xs + x, ys + y)
+      }
+      val errorMeanSum = errorSum / errorCountSum
       timeErrorRaceMap.foreach {
         case (category, seq) =>
           val timeRace = timeRaceMap(category)
           timeRaceMap.put(
             category, seq.map {
-              case (raceType, error) =>
+              case (raceType, error, errorCount) =>
                 val (_, m, s) = timeRace.find(_._1 == raceType).get
-                (raceType, m + error, s)
+                val errorMean = if (errorCount == 0) 0 else error / errorCount - errorMeanSum
+                (raceType, m + errorMean, s)
             })
           timeErrorRaceMap.put(category, seq.map {
-            case (raceType, error) =>
-              raceType -> (error * 0.9)
+            case (raceType, error, errorCount) =>
+              (raceType, error * 0.9, errorCount)
           })
       }
 
@@ -444,6 +464,8 @@ object Main {
         var betCount = 0.0
         var winCount = 0.0
         var oddsCount = 0.0
+        val stdWinMap = scala.collection.mutable.Map[Int, List[Boolean]]()
+
         raceSeq.foreach {
           case (raceId, horses) =>
             val raceCategory = getRaceCategory(horses.head.raceType)
@@ -484,20 +506,20 @@ object Main {
                 (horse.copy(prevDataList = Nil), time)
             }.sortBy(_._1.odds).toSeq
 
-            val (timeMean, timeStd) = res.toList.map(_._2).filterNot(_.isNaN) match {
+            val (timeMean, timeMid) = res.toList.map(_._2).filterNot(_.isNaN) match {
               case Nil => (Double.NaN, Double.NaN)
-              case list => (mean(list), stddev(list))
+              case list => (mean(list), list.sorted.apply(list.length / 2))
             }
             val stdRes = res.map {
               case (horse, time) =>
-                (horse, (time - timeMean) / timeStd * 10 + 50)
+                (horse, time - timeMean)
             }
 
             val removeSeq = if (timeMean.isNaN)
               Nil
             else
               stdRes.filter {
-                x => x._2 < 45
+                x => x._2 < STD_THREASHOLD
               }
 
             val shareSum = removeSeq.map {
@@ -505,14 +527,21 @@ object Main {
                 78.8 / (x._1.odds - 1)
             }.sum
 
-            if (shareSum > 60 && res.count(_._2.isNaN) < 3) {
+            stdRes.foreach {
+              case (pred, std) if !std.isNaN =>
+                val xs = stdWinMap.getOrElse(std.toInt, Nil)
+                stdWinMap.put(Math.max(-20, std.toInt), (pred.rank == 1) :: xs)
+              case _=>
+            }
+
+            if (shareSum > SHARE_THREASHOLDS(raceCategory) && res.count(_._2.isNaN) < 3) {
               betRaceCount += 1
-              if (stdRes.exists(x => x._2 >= 45 && x._1.rank == 1)) {
+              if (stdRes.exists(x => x._2 >= STD_THREASHOLD && x._1.rank == 1)) {
                 winRaceCount += 1
               }
               stdRes.filter {
                 x =>
-                  x._2 >= 45
+                  x._2 >= STD_THREASHOLD
               }.foreach {
                 x =>
                   val betRate = x._2 / 50
@@ -525,6 +554,19 @@ object Main {
             }
           case _ =>
         }
+        val (xarr, yarr) = stdWinMap.toArray.sortBy(_._1).map {
+          case (std, list) =>
+            val win = list.count(x => x)
+            val lose = list.count(x => !x)
+            println(std.toDouble, win, lose, win.toDouble / (win + lose))
+            (std.toDouble, win.toDouble / (win + lose))
+        }.unzip
+//        val f = Figure()
+//        val p = f.subplot(0)
+//        p += plot(DenseVector(xarr),DenseVector(yarr), '.')
+//        p.xlabel = "x axis"
+//        p.ylabel = "y axis"
+//        f.saveas("lines.png")
         println(betCount, betRaceCount, winRaceCount / betRaceCount, winCount / betCount, oddsCount / winCount, oddsCount / betCount)
 
         val outFile = new File("studyResult.csv")
@@ -532,9 +574,7 @@ object Main {
         try {
           timeRaceMap.toSeq.sortBy(_._1).foreach {
             case (_, seq) =>
-              seq.sortBy(_._1 % 10000).foreach {
-                pw.println
-              }
+              pw.println(seq.sortBy(_._1 % 10000).mkString("List(", ",\n", ")"))
           }
         } finally {
           pw.close()
