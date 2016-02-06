@@ -538,8 +538,12 @@ object Main {
                 pw.println("%010d".format(raceId.toLong))
                 stdRes.filter(cond).foreach {
                   x =>
+                    var bonus = 0
+                    if (x._1.age >= 72) {
+                      bonus += 50
+                    }
                     pw.println(true, x)
-                    val betRate = 1.0 / (res.count(_._2.isNaN) + 2)
+                    val betRate = 1.0 / (res.count(_._2.isNaN) + 2) * (100 + bonus)
                     betCount += betRate
                     if (x._1.rank == 1) {
                       winCount += betRate
