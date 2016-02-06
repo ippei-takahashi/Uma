@@ -12,140 +12,261 @@ object Main {
   case class PredictData(horseId: Int, raceDate: Int, raceType: Long, age: Double, rank: Int, odds: Double,
                          stdTime: Double, paceRank: Int, isGoodBaba: Boolean, horseNo: Int, prevDataList: Seq[Data])
 
-  val CATEGORY_SHIBA_SHORT = 0
+  private[this] val CATEGORY_SHIBA_SHORT = 0
 
-  val CATEGORY_SHIBA_MIDDLE = 1
+  private[this] val CATEGORY_SHIBA_MIDDLE = 1
 
-  val CATEGORY_SHIBA_SEMI_LONG = 2
+  private[this] val CATEGORY_SHIBA_SEMI_LONG = 2
 
-  val CATEGORY_SHIBA_LONG = 3
+  private[this] val CATEGORY_SHIBA_LONG = 3
 
-  val CATEGORY_SHIBA_VERY_LONG = 4
+  private[this] val CATEGORY_SHIBA_VERY_LONG = 4
 
-  val CATEGORY_SHIBA_VERY_VERY_LONG = 5
+  private[this] val CATEGORY_SHIBA_VERY_VERY_LONG = 5
 
-  val CATEGORY_DIRT_SHORT = 6
+  private[this] val CATEGORY_DIRT_SHORT = 6
 
-  val CATEGORY_DIRT_MIDDLE = 7
+  private[this] val CATEGORY_DIRT_MIDDLE = 7
 
-  val CATEGORY_DIRT_SEMI_LONG = 8
+  private[this] val CATEGORY_DIRT_SEMI_LONG = 8
 
-  val CATEGORY_DIRT_LONG = 9
+  private[this] val CATEGORY_DIRT_LONG = 9
 
-  private[this] val timeRaceMap = Map[Int, List[(Int, Double, Double)]](
+  private[this] val STD_THREASHOLD = -2
+
+  private[this] val SHARE_THREASHOLDS = Map[Int, Double](
+    CATEGORY_SHIBA_SHORT -> 38,
+    CATEGORY_SHIBA_MIDDLE -> 38,
+    CATEGORY_SHIBA_SEMI_LONG -> 38,
+    CATEGORY_SHIBA_LONG -> 35,
+    CATEGORY_SHIBA_VERY_LONG -> 35,
+    CATEGORY_SHIBA_VERY_VERY_LONG -> 35,
+    CATEGORY_DIRT_SHORT -> 28,
+    CATEGORY_DIRT_MIDDLE -> 28,
+    CATEGORY_DIRT_SEMI_LONG -> 25,
+    CATEGORY_DIRT_LONG -> 25
+  )
+
+  private[this] val timeRaceMap = scala.collection.mutable.Map[Int, List[(Int, Double, Double)]](
     CATEGORY_SHIBA_SHORT -> List(
-      (1011200, 58.45, 1.7),
-      (2011200, 58.75, 1.7),
-      (3011200, 58.1, 1.7),
-      (4011200, 58.2, 1.7),
-      (6111200, 58.0, 1.7),
-      (7011200, 58.25, 1.7),
-      (8011200, 57.6, 1.7),
-      (9011200, 58.1, 1.7),
-      (10011200, 57.85, 1.7)
+      (1011200, 58.43765077048586, 1.5),
+      (2011200, 58.82585934913802, 1.5),
+      (3011200, 58.013314207806914, 1.5),
+      (4011200, 58.28461752843878, 1.5),
+      (6111200, 58.19007029920478, 1.5),
+      (7011200, 58.13398817656369, 1.5),
+      (8011200, 57.91141409100686, 1.5),
+      (9011200, 58.169821497275976, 1.5),
+      (10011200, 57.91397306510776, 1.5)
     ),
     CATEGORY_SHIBA_MIDDLE -> List(
-      (4011400, 62.4, 1.8),
-      (5011400, 61.7, 1.8),
-      (7011400, 62.9, 1.8),
-      (8011400, 62.1, 1.8),
-      (8111400, 61.9, 1.8),
-      (9011400, 62.8, 1.8)
+      (4011400, 62.27304611820301, 1.6),
+      (5011400, 61.91216577047677, 1.6),
+      (7011400, 62.54024163669171, 1.6),
+      (8011400, 62.12013626646127, 1.6),
+      (8111400, 62.218035238319324, 1.6),
+      (9011400, 62.93307325752795, 1.6)
     ),
     CATEGORY_SHIBA_SEMI_LONG -> List(
-      (1011500, 65.0, 1.85),
-
-      (4111600, 65.7, 1.9),
-      (5011600, 66.3, 1.9),
-      (6111600, 66.9, 1.9),
-      (7011600, 67.4, 1.9),
-      (8011600, 66.6, 1.9),
-      (8111600, 66.45, 1.9),
-      (9111600, 66.55, 1.9)
+      (1011500, 64.72426478930322, 1.65),
+      (4111600, 65.8511273025396, 1.7),
+      (5011600, 66.35200371986919, 1.7),
+      (6111600, 66.89353041125254, 1.7),
+      (7011600, 66.94788326677327, 1.7),
+      (8011600, 66.24970984309415, 1.7),
+      (8111600, 66.60205619821527, 1.7),
+      (9111600, 66.4410511746216, 1.7)
     ),
     CATEGORY_SHIBA_LONG -> List(
-      (1011800, 72.2, 2.0),
-      (2011800, 72.6, 2.0),
-      (3011800, 71.8, 2.0),
-      (4111800, 70.4, 2.0),
-      (5011800, 71.0, 2.0),
-      (6011800, 72.0, 2.0),
-      (8111800, 71.15, 2.0),
-      (9111800, 71.2, 2.0),
-      (10011800, 71.5, 2.0)
+      (1011800, 72.21748524409779, 1.8),
+      (2011800, 72.57899017943711, 1.8),
+      (3011800, 71.7202451945094, 1.8),
+      (4111800, 70.31460630228092, 1.8),
+      (5011800, 71.12862606082747, 1.8),
+      (6011800, 71.56725878962095, 1.8),
+      (8111800, 71.02580349039357, 1.8),
+      (9111800, 71.15613243441345, 1.8),
+      (10011800, 71.61421237987544, 1.8)
     ),
     CATEGORY_SHIBA_VERY_LONG -> List(
-      (1012000, 76.65, 2.1),
-      (2012000, 77.2, 2.1),
-      (3012000, 76.1, 2.1),
-      (4012000, 76.15, 2.1),
-      (4112000, 75.05, 2.1),
-      (5012000, 75.65, 2.1),
-      (6012000, 76.45, 2.1),
-      (7012000, 76.85, 2.1),
-      (8012000, 75.65, 2.1),
-      (9012000, 76.65, 2.1),
-      (10012000, 75.95, 2.1)
+      (1012000, 76.40210208476523, 1.9),
+      (2012000, 77.28910435583585, 1.9),
+      (3012000, 75.91151289882677, 1.9),
+      (4012000, 75.68782869363847, 1.9),
+      (4112000, 75.41429035054125, 1.9),
+      (5012000, 75.79272699386921, 1.9),
+      (6012000, 76.22718989864491, 1.9),
+      (7012000, 76.53378320867436, 1.9),
+      (8012000, 75.61828048286283, 1.9),
+      (9012000, 76.45856294780879, 1.9),
+      (10012000, 75.97913045479397, 1.9)
     ),
     CATEGORY_SHIBA_VERY_VERY_LONG -> List(
-      (4012200, 80.65, 2.2),
-      (6112200, 81.0, 2.2),
-      (7012200, 81.75, 2.2),
-      (8112200, 80.25, 2.2),
-      (9012200, 81.25, 2.2),
-
-      (4012400, 85.25, 2.3),
-      (5012400, 85.0, 2.3),
-      (8112400, 84.65, 2.3),
-      (9112400, 85.5, 2.3),
-
-      (6012500, 88.0, 2.35),
-
-      (3012600, 90.1, 2.4),
-      (10012600, 89.95, 2.4)
+      (4012200, 80.864377281439, 2.0),
+      (6112200, 80.83069335325474, 2.0),
+      (7012200, 81.50733068218753, 2.0),
+      (8112200, 80.23021252021998, 2.0),
+      (9012200, 81.16361044615533, 2.0),
+      (4012400, 85.20028225999893, 2.1),
+      (5012400, 85.29692869021689, 2.1),
+      (8112400, 84.70430263003067, 2.1),
+      (9112400, 85.35710818924866, 2.1),
+      (6012500, 88.0745388952903, 2.15),
+      (3012600, 90.19696597347051, 2.2),
+      (10012600, 89.8466247274885, 2.2)
     ),
     CATEGORY_DIRT_SHORT -> List(
-      (1001000, 56.15, 1.7),
-      (2001000, 56.1, 1.7),
-      (10001000, 55.65, 1.7),
-
-      (3001150, 60.9, 1.85),
-
-      (4001200, 61.9, 1.9),
-      (6001200, 62.2, 1.9),
-      (7001200, 62.1, 1.9),
-      (8001200, 61.8, 1.9),
-      (9001200, 61.7, 1.9)
+      (1001000, 56.75810966097955, 1.7),
+      (2001000, 56.365883363571214, 1.7),
+      (10001000, 55.643637709971316, 1.7),
+      (3001150, 61.223327838498854, 1.85),
+      (4001200, 62.21525734092809, 1.9),
+      (6001200, 62.38014142230501, 1.9),
+      (7001200, 62.33030660730873, 1.9),
+      (8001200, 62.13960304484699, 1.9),
+      (9001200, 61.651247615382914, 1.9)
     ),
     CATEGORY_DIRT_MIDDLE -> List(
-      (5001300, 63.3, 1.95),
-
-      (5001400, 65.8, 2.0),
-      (7001400, 66.5, 2.0),
-      (8001400, 66.4, 2.0),
-      (9001400, 66.4, 2.0)
+      (5001300, 62.672878193131375, 1.95),
+      (5001400, 65.17129375245729, 2.0),
+      (7001400, 66.2558753675327, 2.0),
+      (8001400, 66.23770091957972, 2.0),
+      (9001400, 66.15667314758339, 2.0)
     ),
     CATEGORY_DIRT_SEMI_LONG -> List(
-      (5001600, 70.5, 2.15),
-
-      (1001700, 73.8, 2.2),
-      (2001700, 73.9, 2.2),
-      (3001700, 74.1, 2.2),
-      (7001700, 74.1, 2.2),
-      (10001700, 73.5, 2.2)
+      (5001600, 70.52883479730231, 2.15),
+      (1001700, 74.0027851944908, 2.2),
+      (2001700, 73.94438941669941, 2.2),
+      (3001700, 74.05633331336809, 2.2),
+      (7001700, 74.39370796032252, 2.2),
+      (10001700, 73.43816738697241, 2.2)
     ),
     CATEGORY_DIRT_LONG -> List(
-      (4001800, 76.1, 2.25),
-      (6001800, 76.8, 2.25),
-      (7001800, 76.2, 2.25),
-      (8001800, 75.8, 2.25),
-      (9001800, 75.9, 2.25),
+      (4001800, 76.20973049007549, 2.25),
+      (6001800, 76.55368792836467, 2.25),
+      (7001800, 76.28125182922382, 2.25),
+      (8001800, 75.91813389060748, 2.25),
+      (9001800, 75.72246437810817, 2.25),
+      (8001900, 78.70925896660967, 2.3),
+      (9002000, 80.84778959432089, 2.35),
+      (5002100, 82.59575041637993, 2.4)
+    )
+  )
 
-      (8001900, 78.3, 2.3),
+  private[this] val timeErrorRaceMap = scala.collection.mutable.Map[Int, List[(Int, Double, Int)]](
+    CATEGORY_SHIBA_SHORT -> List(
+      (1011200, 0.0, 0),
+      (2011200, 0.0, 0),
+      (3011200, 0.0, 0),
+      (4011200, 0.0, 0),
+      (6111200, 0.0, 0),
+      (7011200, 0.0, 0),
+      (8011200, 0.0, 0),
+      (9011200, 0.0, 0),
+      (10011200, 0.0, 0)
+    ),
+    CATEGORY_SHIBA_MIDDLE -> List(
+      (4011400, 0.0, 0),
+      (5011400, 0.0, 0),
+      (7011400, 0.0, 0),
+      (8011400, 0.0, 0),
+      (8111400, 0.0, 0),
+      (9011400, 0.0, 0)
+    ),
+    CATEGORY_SHIBA_SEMI_LONG -> List(
+      (1011500, 0.0, 0),
 
-      (9002000, 80.5, 2.35),
+      (4111600, 0.0, 0),
+      (5011600, 0.0, 0),
+      (6111600, 0.0, 0),
+      (7011600, 0.0, 0),
+      (8011600, 0.0, 0),
+      (8111600, 0.0, 0),
+      (9111600, 0.0, 0)
+    ),
+    CATEGORY_SHIBA_LONG -> List(
+      (1011800, 0.0, 0),
+      (2011800, 0.0, 0),
+      (3011800, 0.0, 0),
+      (4111800, 0.0, 0),
+      (5011800, 0.0, 0),
+      (6011800, 0.0, 0),
+      (8111800, 0.0, 0),
+      (9111800, 0.0, 0),
+      (10011800, 0.0, 0)
+    ),
+    CATEGORY_SHIBA_VERY_LONG -> List(
+      (1012000, 0.0, 0),
+      (2012000, 0.0, 0),
+      (3012000, 0.0, 0),
+      (4012000, 0.0, 0),
+      (4112000, 0.0, 0),
+      (5012000, 0.0, 0),
+      (6012000, 0.0, 0),
+      (7012000, 0.0, 0),
+      (8012000, 0.0, 0),
+      (9012000, 0.0, 0),
+      (10012000, 0.0, 0)
+    ),
+    CATEGORY_SHIBA_VERY_VERY_LONG -> List(
+      (4012200, 0.0, 0),
+      (6112200, 0.0, 0),
+      (7012200, 0.0, 0),
+      (8112200, 0.0, 0),
+      (9012200, 0.0, 0),
 
-      (5002100, 82.4, 2.4)
+      (4012400, 0.0, 0),
+      (5012400, 0.0, 0),
+      (8112400, 0.0, 0),
+      (9112400, 0.0, 0),
+
+      (6012500, 0.0, 0),
+
+      (3012600, 0.0, 0),
+      (10012600, 0.0, 0)
+    ),
+    CATEGORY_DIRT_SHORT -> List(
+      (1001000, 0.0, 0),
+      (2001000, 0.0, 0),
+      (10001000, 0.0, 0),
+
+      (3001150, 0.0, 0),
+
+      (4001200, 0.0, 0),
+      (6001200, 0.0, 0),
+      (7001200, 0.0, 0),
+      (8001200, 0.0, 0),
+      (9001200, 0.0, 0)
+    ),
+    CATEGORY_DIRT_MIDDLE -> List(
+      (5001300, 0.0, 0),
+
+      (5001400, 0.0, 0),
+      (7001400, 0.0, 0),
+      (8001400, 0.0, 0),
+      (9001400, 0.0, 0)
+    ),
+    CATEGORY_DIRT_SEMI_LONG -> List(
+      (5001600, 0.0, 0),
+
+      (1001700, 0.0, 0),
+      (2001700, 0.0, 0),
+      (3001700, 0.0, 0),
+      (7001700, 0.0, 0),
+      (10001700, 0.0, 0)
+    ),
+    CATEGORY_DIRT_LONG -> List(
+      (4001800, 0.0, 0),
+      (6001800, 0.0, 0),
+      (7001800, 0.0, 0),
+      (8001800, 0.0, 0),
+      (9001800, 0.0, 0),
+
+      (8001900, 0.0, 0),
+
+      (9002000, 0.0, 0),
+
+      (5002100, 0.0, 0)
     )
   )
 
@@ -165,6 +286,7 @@ object Main {
     for (i <- 0 until size) {
       array(i) = data(i, ::).t
     }
+
 
     val raceSeq = array.groupBy(_ (0)).map {
       case (raceId, arr) =>
@@ -196,7 +318,7 @@ object Main {
                 raceType = raceType, paceRank = paceRank, isGoodBaba = x(11) + x(12) == 1.0 && x(7) + x(8) == 1.0,
                 horseNo = horseNo)
             }.toList.sortBy(-_.raceDate)
-            val d = arr2.maxBy(_(2))
+            val d = arr2.maxBy(_ (2))
             new PredictData(horseId = d(1).toInt, raceDate = head.raceDate, age = head.age, rank = head.rank,
               odds = head.odds, stdTime = head.stdTime, raceType = head.raceType,
               isGoodBaba = head.isGoodBaba, horseNo = head.horseNo,
@@ -207,15 +329,9 @@ object Main {
     val outFile = new File("result.csv")
     val pw = new PrintWriter(outFile)
 
-    var betRaceCount = 0.0
-    var winRaceCount = 0.0
-    var betCount = 0.0
-    var winCount = 0.0
-    var oddsCount = 0.0
-
     try {
       raceSeq.foreach {
-        case (raceId, horses) if horses.head.isGoodBaba =>
+        case (raceId, horses) =>
           val raceCategory = getRaceCategory(horses.head.raceType)
           val secondaryRaceCategory = getSecondaryRaceCategory(raceCategory)
           val raceDate = horses.head.raceDate
@@ -229,7 +345,7 @@ object Main {
                 data <- horse.prevDataList if raceDate - data.raceDate < 10000
                 time <- timeRace.find(_._1 == data.raceType).toList match {
                   case Nil =>
-                    timeRaceSecondary.toList.flatMap {
+                    timeRaceSecondary.flatMap {
                       secondary =>
                         secondary.find(_._1 == data.raceType).toList
                     }
@@ -254,20 +370,20 @@ object Main {
               (horse.copy(prevDataList = Nil), time)
           }.sortBy(_._1.odds).toSeq
 
-          val (timeMean, timeStd) = res.toList.map(_._2).filterNot(_.isNaN) match {
+          val (timeMean, timeMid) = res.toList.map(_._2).filterNot(_.isNaN) match {
             case Nil => (Double.NaN, Double.NaN)
-            case list => (mean(list), stddev(list))
+            case list => (mean(list), list.sorted.apply(list.length / 2))
           }
           val stdRes = res.map {
             case (horse, time) =>
-              (horse, (time - timeMean) / timeStd * 10 + 50)
+              (horse, time - timeMean)
           }
 
           val removeSeq = if (timeMean.isNaN)
             Nil
           else
             stdRes.filter {
-              x => x._2 < 45
+              x => x._2 < STD_THREASHOLD
             }
 
           val shareSum = removeSeq.map {
@@ -275,14 +391,20 @@ object Main {
               78.8 / (x._1.odds - 1)
           }.sum
 
-          if (shareSum > 60 && res.count(_._2.isNaN) < 3) {
+          val cond = (x: (PredictData, Double)) =>
+            x._2 >= STD_THREASHOLD && Math.pow((x._2 + 10) / 100, 1.3) * Math.pow(Math.min(x._1.odds, 100), 0.2) > 1 / Math.pow(shareSum, 0.5)
+
+          if (shareSum > SHARE_THREASHOLDS(raceCategory) && res.count(_._2.isNaN) < 3) {
             pw.println("%010d".format(raceId.toLong))
             println("%010d".format(raceId.toLong))
-            stdRes.filter {
-              x => x._2 >= 45
-            }.foreach {
+            stdRes.filter(cond).foreach {
               x =>
-                pw.println(x)
+                pw.println(s"id = ${x._1.horseId}, no = ${x._1.horseNo} odds = ${x._1.odds} score = ${x._2}")
+                println(s"id = ${x._1.horseId}, no = ${x._1.horseNo} odds = ${x._1.odds} score = ${x._2}")
+            }
+            stdRes.filterNot(cond).foreach {
+              x =>
+                println(s"id = ${x._1.horseId}, no = ${x._1.horseNo} odds = ${x._1.odds} score = ${x._2}")
             }
             pw.println
           }
@@ -329,25 +451,25 @@ object Main {
 
   def getSecondaryRaceCategory(raceCategory: Int) = raceCategory match {
     case CATEGORY_SHIBA_SHORT =>
-      None
+      Nil
     case CATEGORY_SHIBA_MIDDLE =>
-      None
+      List(CATEGORY_SHIBA_SEMI_LONG)
     case CATEGORY_SHIBA_SEMI_LONG =>
-      Some(CATEGORY_SHIBA_MIDDLE)
+      List(CATEGORY_SHIBA_MIDDLE)
     case CATEGORY_SHIBA_LONG =>
-      Some(CATEGORY_SHIBA_VERY_LONG)
+      List(CATEGORY_SHIBA_VERY_LONG, CATEGORY_SHIBA_VERY_VERY_LONG)
     case CATEGORY_SHIBA_VERY_LONG =>
-      Some(CATEGORY_SHIBA_LONG)
+      List(CATEGORY_SHIBA_LONG, CATEGORY_SHIBA_LONG)
     case CATEGORY_SHIBA_VERY_VERY_LONG =>
-      Some(CATEGORY_SHIBA_VERY_LONG)
+      List(CATEGORY_SHIBA_LONG, CATEGORY_SHIBA_VERY_LONG)
     case CATEGORY_DIRT_SHORT =>
-      Some(CATEGORY_DIRT_MIDDLE)
+      List(CATEGORY_DIRT_MIDDLE)
     case CATEGORY_DIRT_MIDDLE =>
-      None
+      List(CATEGORY_DIRT_SHORT)
     case CATEGORY_DIRT_SEMI_LONG =>
-      None
+      Nil
     case CATEGORY_DIRT_LONG =>
-      None
+      Nil
   }
 
   def makeRaceType(vector: DenseVector[Double], raceId: Long): Long = {
