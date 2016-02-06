@@ -454,120 +454,128 @@ object Main {
         var winCount = 0.0
         var oddsCount = 0.0
         val stdWinMap = scala.collection.mutable.Map[Int, List[Boolean]]()
+        val outFile = new File("result.csv")
+        val pw = new PrintWriter(outFile)
 
-        raceSeq.foreach {
-          case (raceId, horses) =>
-            val raceCategory = getRaceCategory(horses.head.raceType)
-            val secondaryRaceCategory = getSecondaryRaceCategory(raceCategory)
-            val raceDate = horses.head.raceDate
+        try {
+          raceSeq.foreach {
+            case (raceId, horses) =>
+              val raceCategory = getRaceCategory(horses.head.raceType)
+              val secondaryRaceCategory = getSecondaryRaceCategory(raceCategory)
+              val raceDate = horses.head.raceDate
 
-            val timeRace = timeRaceMap(raceCategory)
-            val timeRaceSecondary = secondaryRaceCategory.map(timeRaceMap)
+              val timeRace = timeRaceMap(raceCategory)
+              val timeRaceSecondary = secondaryRaceCategory.map(timeRaceMap)
 
-            val timeList = horses.map {
-              horse =>
-                for {
-                  data <- horse.prevDataList if raceDate - data.raceDate < 10000
-                  time <- timeRace.find(_._1 == data.raceType).toList match {
-                    case Nil =>
-                      timeRaceSecondary.flatMap {
-                        secondary =>
-                          secondary.find(_._1 == data.raceType).toList
-                      }
+              val timeList = horses.map {
+                horse =>
+                  for {
+                    data <- horse.prevDataList if raceDate - data.raceDate < 10000
+                    time <- timeRace.find(_._1 == data.raceType).toList match {
+                      case Nil =>
+                        timeRaceSecondary.flatMap {
+                          secondary =>
+                            secondary.find(_._1 == data.raceType).toList
+                        }
+                      case list =>
+                        list
+                    }
+                  } yield {
+                    val m = time._2
+                    val s = time._3
+
+                    (m - data.stdTime) / s * 10 + 50
+                  }
+              }
+
+              val res = horses.zip(timeList).map {
+                case (horse, prevStdList) =>
+                  val time = prevStdList.sortBy(-_) match {
+                    case Nil => Double.NaN
                     case list =>
-                      list
+                      mean(list.take(list.length / 2 + 1))
                   }
-                } yield {
-                  val m = time._2
-                  val s = time._3
+                  (horse.copy(prevDataList = Nil), time)
+              }.sortBy(_._1.odds).toSeq
 
-                  (m - data.stdTime) / s * 10 + 50
+              val (timeMean, timeMid) = res.toList.map(_._2).filterNot(_.isNaN) match {
+                case Nil => (Double.NaN, Double.NaN)
+                case list => (mean(list), list.sorted.apply(list.length / 2))
+              }
+              val stdRes = res.map {
+                case (horse, time) =>
+                  (horse, time - timeMean)
+              }
+
+              val removeSeq = if (timeMean.isNaN)
+                Nil
+              else
+                stdRes.filter {
+                  x => x._2 < STD_THREASHOLD
                 }
-            }
 
-            val res = horses.zip(timeList).map {
-              case (horse, prevStdList) =>
-                val time = prevStdList.sortBy(-_) match {
-                  case Nil => Double.NaN
-                  case list =>
-                    mean(list.take(3))
+              val shareSum = removeSeq.map {
+                x =>
+                  78.8 / (x._1.odds - 1)
+              }.sum
+
+              stdRes.foreach {
+                case (pred, std) if !std.isNaN =>
+                  val xs = stdWinMap.getOrElse(std.toInt, Nil)
+                  stdWinMap.put(Math.max(-20, std.toInt), (pred.rank == 1) :: xs)
+                case _ =>
+              }
+
+              val cond = (x: (PredictData, Double)) =>
+                x._2 >= STD_THREASHOLD &&
+                  Math.pow((x._2 + 10) / 100, 1.3) * Math.pow(Math.min(x._1.odds, 100), 0.2) > 1.0 / Math.pow(shareSum, 0.5)
+
+              if (shareSum > SHARE_THREASHOLDS(raceCategory) && res.count(_._2.isNaN) < 3) {
+                betRaceCount += 1
+                if (stdRes.exists(x => cond(x) && x._1.rank == 1)) {
+                  winRaceCount += 1
                 }
-                (horse.copy(prevDataList = Nil), time)
-            }.sortBy(_._1.odds).toSeq
-
-            val (timeMean, timeMid) = res.toList.map(_._2).filterNot(_.isNaN) match {
-              case Nil => (Double.NaN, Double.NaN)
-              case list => (mean(list), list.sorted.apply(list.length / 2))
-            }
-            val stdRes = res.map {
-              case (horse, time) =>
-                (horse, time - timeMean)
-            }
-
-            val removeSeq = if (timeMean.isNaN)
-              Nil
-            else
-              stdRes.filter {
-                x => x._2 < STD_THREASHOLD
+                pw.println("%010d".format(raceId.toLong))
+                stdRes.filter(cond).foreach {
+                  x =>
+                    pw.println(true, x)
+                    val betRate = 1.0 / (res.count(_._2.isNaN) + 2)
+                    betCount += betRate
+                    if (x._1.rank == 1) {
+                      winCount += betRate
+                      oddsCount += x._1.odds * betRate
+                    }
+                }
+                stdRes.filterNot(cond).foreach {
+                  x =>
+                    pw.println(false, x)
+                }
+                pw.println
               }
-
-            val shareSum = removeSeq.map {
-              x =>
-                78.8 / (x._1.odds - 1)
-            }.sum
-
-            stdRes.foreach {
-              case (pred, std) if !std.isNaN =>
-                val xs = stdWinMap.getOrElse(std.toInt, Nil)
-                stdWinMap.put(Math.max(-20, std.toInt), (pred.rank == 1) :: xs)
-              case _ =>
-            }
-
-            if (shareSum > SHARE_THREASHOLDS(raceCategory) && res.count(_._2.isNaN) < 3) {
-              betRaceCount += 1
-              if (stdRes.exists(x => x._2 >= STD_THREASHOLD && Math.pow((x._2 + 10) / 100, 1.3) * Math.pow(Math.min(x._1.odds, 100), 0.2) > 1 / Math.pow(shareSum, 0.5) && x._1.rank == 1)) {
-                winRaceCount += 1
-              }
-              stdRes.filter {
-                x =>
-                  x._2 >= STD_THREASHOLD && Math.pow((x._2 + 10) / 100, 1.3) * Math.pow(Math.min(x._1.odds, 100), 0.2) > 1 / Math.pow(shareSum, 0.5)
-              }.foreach {
-                x =>
-                  val betRate = 1 //Math.pow((x._2 + 10) / 100, 1.3) * Math.pow(Math.min(x._1.odds, 100), 0.2)
-                  betCount += betRate
-                  if (x._1.rank == 1) {
-                    winCount += betRate
-                    oddsCount += x._1.odds * betRate
-                  }
-              }
-            }
-          case _ =>
+            case _ =>
+          }
+        } finally {
+          pw.close()
         }
+
         val (xarr, yarr) = stdWinMap.toArray.sortBy(_._1).map {
           case (std, list) =>
             val win = list.count(x => x)
             val lose = list.count(x => !x)
-            //            println(std.toDouble, win, lose, win.toDouble / (win + lose))
             (std.toDouble, win.toDouble / (win + lose))
         }.unzip
-        //        val f = Figure()
-        //        val p = f.subplot(0)
-        //        p += plot(DenseVector(xarr),DenseVector(yarr), '.')
-        //        p.xlabel = "x axis"
-        //        p.ylabel = "y axis"
-        //        f.saveas("lines.png")
         println(betCount, betRaceCount, winRaceCount / betRaceCount, winCount / betCount, oddsCount / winCount, oddsCount / betCount)
 
-        val outFile = new File("studyResult.csv")
-        val pw = new PrintWriter(outFile)
+        val outFileStudy = new File("studyResult.csv")
+        val pwStudy = new PrintWriter(outFileStudy)
 
         try {
           timeRaceMap.toSeq.sortBy(_._1).foreach {
             case (_, seq) =>
-              pw.println(seq.sortBy(_._1 % 10000).mkString("List(", ",\n", ")"))
+              pwStudy.println(seq.sortBy(_._1 % 10000).mkString("List(", ",\n", ")"))
           }
         } finally {
-          pw.close()
+          pwStudy.close()
         }
       }
     }
