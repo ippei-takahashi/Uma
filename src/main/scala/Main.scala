@@ -528,7 +528,7 @@ object Main {
 
               val cond = (x: (PredictData, Double)) =>
                 x._2 >= STD_THREASHOLD &&
-                  Math.pow((x._2 + 10) / 100, 1.3) * Math.pow(Math.min(x._1.odds, 100), 0.2) > 1.0 / Math.pow(shareSum, 0.5)
+                  Math.pow((x._2 + 10) / 100, 1.3) * Math.pow(Math.min(x._1.odds, 100), 0.2) > Math.min(1.0 / Math.pow(shareSum, 0.5), 0.15)
 
               if (shareSum > SHARE_THREASHOLDS(raceCategory) && res.count(_._2.isNaN) < 3) {
                 betRaceCount += 1
