@@ -365,7 +365,7 @@ object Main {
               val time = prevStdList.sortBy(-_) match {
                 case Nil => Double.NaN
                 case list =>
-                  mean(list.take(3))
+                  mean(list.take(list.length / 2 + 1))
               }
               (horse.copy(prevDataList = Nil), time)
           }.sortBy(_._1.odds).toSeq
@@ -392,15 +392,21 @@ object Main {
           }.sum
 
           val cond = (x: (PredictData, Double)) =>
-            x._2 >= STD_THREASHOLD && Math.pow((x._2 + 10) / 100, 1.3) * Math.pow(Math.min(x._1.odds, 100), 0.2) > 1 / Math.pow(shareSum, 0.5)
+            x._2 >= STD_THREASHOLD && Math.pow((x._2 + 10) / 100, 1.3) * Math.pow(Math.min(x._1.odds, 100), 0.2) > Math.min(0.15, 1 / Math.pow(shareSum, 0.5))
 
           if (shareSum > SHARE_THREASHOLDS(raceCategory) && res.count(_._2.isNaN) < 3) {
             pw.println("%010d".format(raceId.toLong))
             println("%010d".format(raceId.toLong))
             stdRes.filter(cond).foreach {
               x =>
-                pw.println(s"id = ${x._1.horseId}, no = ${x._1.horseNo} odds = ${x._1.odds} score = ${x._2}")
-                println(s"id = ${x._1.horseId}, no = ${x._1.horseNo} odds = ${x._1.odds} score = ${x._2}")
+                var bonus = 0
+                if (x._1.age >= 72) {
+                  bonus += 50
+                }
+                val betRate = 1.0 / (res.count(_._2.isNaN) + 2) * (100 + bonus)
+
+                pw.println(s"id = ${x._1.horseId}, no = ${x._1.horseNo} odds = ${x._1.odds} score = ${x._2}, betRate = $betRate")
+                println(s"id = ${x._1.horseId}, no = ${x._1.horseNo} odds = ${x._1.odds} score = ${x._2}, betRate = $betRate")
             }
             stdRes.filterNot(cond).foreach {
               x =>
