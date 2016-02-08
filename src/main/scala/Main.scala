@@ -538,7 +538,7 @@ object Main {
               val cond2 = (x: (PredictData, Double)) =>
                 Math.pow((x._2 + 10) / 100, 1.3) > 0.135
 
-              if (shareSum > SHARE_THRESHOLDS(raceCategory) && res.count(_._2.isNaN) < 4 && stdRes.exists(x => cond1(x))) {
+              if (shareSum > SHARE_THRESHOLDS(raceCategory) && res.take(5).count(_._2.isNaN) < 3 && stdRes.exists(x => cond1(x))) {
                 betRaceCount += 1
                 if (stdRes.exists(x => cond1(x) && x._1.rank == 1)) {
                   winRaceCount += 1
@@ -551,7 +551,7 @@ object Main {
                       bonus += 50
                     }
                     pw.println(true, x)
-                    val betRate = 0.05 / (res.count(_._2.isNaN) + 1) * (100 + bonus) * score(x)
+                    val betRate = 1.0 / (res.count(_._2.isNaN) + 1) * (100 + bonus) * score(x)
                     betCount += betRate
                     if (x._1.rank == 1) {
                       winCount += betRate
@@ -563,7 +563,7 @@ object Main {
                     pw.println(false, x)
                 }
                 pw.println
-              } else if (res.count(_._2.isNaN) < 4 && stdRes.exists(x => cond2(x))) {
+              } else if (res.take(5).count(_._2.isNaN) < 3 && stdRes.exists(x => cond2(x))) {
                 betRaceCount += 1
                 if (stdRes.exists(x => cond2(x) && x._1.rank == 1)) {
                   winRaceCount += 1
@@ -576,7 +576,7 @@ object Main {
                       bonus += 50
                     }
                     pw.println(true, x)
-                    val betRate = 0.05 / (res.count(_._2.isNaN) + 1) * (100 + bonus) * score(x)
+                    val betRate = 1.0 / (res.count(_._2.isNaN) + 1) * (100 + bonus) * score(x)
                     betCount += betRate
                     if (x._1.rank == 1) {
                       winCount += betRate
