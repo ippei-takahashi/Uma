@@ -32,9 +32,9 @@ object Main {
 
   private[this] val CATEGORY_DIRT_LONG = 9
 
-  private[this] val STD_THREASHOLD = -2
+  private[this] val STD_THRESHOLD = -2
 
-  private[this] val SHARE_THREASHOLDS = Map[Int, Double](
+  private[this] val SHARE_THRESHOLDS = Map[Int, Double](
     CATEGORY_SHIBA_SHORT -> 38,
     CATEGORY_SHIBA_MIDDLE -> 38,
     CATEGORY_SHIBA_SEMI_LONG -> 38,
@@ -339,19 +339,12 @@ object Main {
           val timeRace = timeRaceMap(raceCategory)
           val timeRaceSecondary = secondaryRaceCategory.map(timeRaceMap)
 
-          val timeList = horses.map {
+
+          val timeListStrict = horses.map {
             horse =>
               for {
                 data <- horse.prevDataList if raceDate - data.raceDate < 10000
-                time <- timeRace.find(_._1 == data.raceType).toList match {
-                  case Nil =>
-                    timeRaceSecondary.flatMap {
-                      secondary =>
-                        secondary.find(_._1 == data.raceType).toList
-                    }
-                  case list =>
-                    list
-                }
+                time <- timeRace.filter(_._1 == data.raceType)
               } yield {
                 val m = time._2
                 val s = time._3
@@ -360,30 +353,58 @@ object Main {
               }
           }
 
-          val res = horses.zip(timeList).map {
-            case (horse, prevStdList) =>
+          val timeList = horses.map {
+            horse =>
+              for {
+                data <- horse.prevDataList if raceDate - data.raceDate < 10000
+                time <- timeRace.filter(_._1 == data.raceType) ++ timeRaceSecondary.flatMap(_.filter(_._1 == data.raceType))
+              } yield {
+                val m = time._2
+                val s = time._3
+
+                (m - data.stdTime) / s * 10 + 50
+              }
+          }
+
+          val res = horses.zip(timeListStrict.zip(timeList)).map {
+            case (horse, (prevStdListStrict, prevStdList)) =>
+              val timeStrict = prevStdListStrict.sortBy(-_) match {
+                case Nil => Double.NaN
+                case list =>
+                  mean(list.take(list.length / 2 + 1))
+              }
               val time = prevStdList.sortBy(-_) match {
                 case Nil => Double.NaN
                 case list =>
                   mean(list.take(list.length / 2 + 1))
               }
-              (horse.copy(prevDataList = Nil), time)
+              (horse.copy(prevDataList = Nil), timeStrict, time)
           }.sortBy(_._1.odds).toSeq
 
-          val (timeMean, timeMid) = res.toList.map(_._2).filterNot(_.isNaN) match {
+          val (timeStrictMean, timeStrictMid) = res.toList.map(_._2).filterNot(_.isNaN) match {
             case Nil => (Double.NaN, Double.NaN)
             case list => (mean(list), list.sorted.apply(list.length / 2))
           }
+
+          val (timeMean, timeMid) = res.toList.map(_._3).filterNot(_.isNaN) match {
+            case Nil => (Double.NaN, Double.NaN)
+            case list => (mean(list), list.sorted.apply(list.length / 2))
+          }
+
           val stdRes = res.map {
-            case (horse, time) =>
-              (horse, time - timeMean)
+            case (horse, timeStrict, time) =>
+              val std = if (timeStrict.isNaN)
+                time - (timeStrictMean * 2 + timeMean) / 3
+              else
+                (timeStrict * 2 + time - (timeStrictMean * 2 + timeMean)) / 3
+              (horse, std)
           }
 
           val removeSeq = if (timeMean.isNaN)
             Nil
           else
             stdRes.filter {
-              x => x._2 < STD_THREASHOLD
+              x => x._2 < STD_THRESHOLD
             }
 
           val shareSum = removeSeq.map {
@@ -391,30 +412,54 @@ object Main {
               78.8 / (x._1.odds - 1)
           }.sum
 
-          val cond = (x: (PredictData, Double)) =>
-            x._2 >= STD_THREASHOLD && Math.pow((x._2 + 10) / 100, 1.3) * Math.pow(Math.min(x._1.odds, 100), 0.2) > Math.min(0.15, 1 / Math.pow(shareSum, 0.5))
+          val score = (x: (PredictData, Double)) =>
+            Math.pow((x._2 + 10) / 100, 1.3) * Math.pow(Math.min(x._1.odds, 100), 0.2)
+          val cond1 = (x: (PredictData, Double)) =>
+            x._2 >= STD_THRESHOLD &&
+              score(x) > Math.min(1.0 / Math.pow(shareSum, 0.5), 0.15)
+          val cond2 = (x: (PredictData, Double)) =>
+            Math.pow((x._2 + 10) / 100, 1.3) > 0.135
 
-          if (shareSum > SHARE_THREASHOLDS(raceCategory) && res.count(_._2.isNaN) < 3) {
+          if (shareSum > SHARE_THRESHOLDS(raceCategory) && res.count(_._2.isNaN) < 4 && stdRes.exists(x => cond1(x))) {
             pw.println("%010d".format(raceId.toLong))
             println("%010d".format(raceId.toLong))
-            stdRes.filter(cond).foreach {
+            stdRes.filter(cond1).foreach {
               x =>
                 var bonus = 0
                 if (x._1.age >= 72) {
                   bonus += 50
                 }
-                val betRate = 1.0 / (res.count(_._2.isNaN) + 2) * (100 + bonus)
+                val betRate = 0.25 / (res.count(_._2.isNaN) + 1) * (100 + bonus) * score(x)
 
                 pw.println(s"id = ${x._1.horseId}, no = ${x._1.horseNo} odds = ${x._1.odds} score = ${x._2}, betRate = $betRate")
                 println(s"id = ${x._1.horseId}, no = ${x._1.horseNo} odds = ${x._1.odds} score = ${x._2}, betRate = $betRate")
             }
-            stdRes.filterNot(cond).foreach {
+            stdRes.filterNot(cond1).foreach {
+              x =>
+                println(s"id = ${x._1.horseId}, no = ${x._1.horseNo} odds = ${x._1.odds} score = ${x._2}")
+            }
+            pw.println
+          } else if (res.count(_._2.isNaN) < 4 && stdRes.exists(x => cond2(x))) {
+            pw.println("%010d".format(raceId.toLong))
+            println("%010d".format(raceId.toLong))
+            stdRes.filter(cond2).foreach {
+              x =>
+                var bonus = 0
+                if (x._1.age >= 72) {
+                  bonus += 50
+                }
+                val betRate = 0.25 / (res.count(_._2.isNaN) + 1) * (100 + bonus) * score(x)
+
+                pw.println(s"id = ${x._1.horseId}, no = ${x._1.horseNo} odds = ${x._1.odds} score = ${x._2}, betRate = $betRate")
+                println(s"id = ${x._1.horseId}, no = ${x._1.horseNo} odds = ${x._1.odds} score = ${x._2}, betRate = $betRate")
+            }
+            stdRes.filterNot(cond2).foreach {
               x =>
                 println(s"id = ${x._1.horseId}, no = ${x._1.horseNo} odds = ${x._1.odds} score = ${x._2}")
             }
             pw.println
           }
-        case _ =>
+            case _ =>
       }
     } catch {
       case e: Exception =>
