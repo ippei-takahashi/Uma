@@ -12,6 +12,8 @@ object Main {
   case class PredictData(horseId: Int, raceDate: Int, raceType: Long, age: Double, rank: Int, odds: Double,
                          stdTime: Double, paceRank: Int, isGoodBaba: Boolean, horseNo: Int, prevDataList: Seq[Data])
 
+  private[this] val TOTAL_MONEY = 400000
+
   private[this] val CATEGORY_SHIBA_SHORT = 0
 
   private[this] val CATEGORY_SHIBA_MIDDLE = 1
@@ -429,7 +431,7 @@ object Main {
                 if (x._1.age >= 72) {
                   bonus += 50
                 }
-                val betRate = 0.25 / (res.count(_._2.isNaN) + 1) * (100 + bonus) * score(x)
+                val betRate = TOTAL_MONEY * 0.0025 / (res.count(_._2.isNaN) + 1) * (100 + bonus) * score(x)
 
                 pw.println(s"id = ${x._1.horseId}, no = ${x._1.horseNo} odds = ${x._1.odds} score = ${x._2}, betRate = $betRate")
                 println(s"id = ${x._1.horseId}, no = ${x._1.horseNo} odds = ${x._1.odds} score = ${x._2}, betRate = $betRate")
@@ -448,7 +450,7 @@ object Main {
                 if (x._1.age >= 72) {
                   bonus += 50
                 }
-                val betRate = 0.25 / (res.count(_._2.isNaN) + 1) * (100 + bonus) * score(x)
+                val betRate = TOTAL_MONEY * 0.0025 / (res.count(_._2.isNaN) + 1) * (100 + bonus) * score(x)
 
                 pw.println(s"id = ${x._1.horseId}, no = ${x._1.horseNo} odds = ${x._1.odds} score = ${x._2}, betRate = $betRate")
                 println(s"id = ${x._1.horseId}, no = ${x._1.horseNo} odds = ${x._1.odds} score = ${x._2}, betRate = $betRate")
