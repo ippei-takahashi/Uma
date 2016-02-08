@@ -37,9 +37,9 @@ object Main {
 
   private[this] val CATEGORY_DIRT_LONG = 9
 
-  private[this] val STD_THREASHOLD = -2
+  private[this] val STD_THRESHOLD = -2
 
-  private[this] val SHARE_THREASHOLDS = Map[Int, Double](
+  private[this] val SHARE_THRESHOLDS = Map[Int, Double](
     CATEGORY_SHIBA_SHORT -> 38,
     CATEGORY_SHIBA_MIDDLE -> 38,
     CATEGORY_SHIBA_SEMI_LONG -> 38,
@@ -515,7 +515,7 @@ object Main {
                 Nil
               else
                 stdRes.filter {
-                  x => x._2 < STD_THREASHOLD
+                  x => x._2 < STD_THRESHOLD
                 }
 
               val shareSum = removeSeq.map {
@@ -531,10 +531,10 @@ object Main {
               }
 
               val cond = (x: (PredictData, Double)) =>
-                x._2 >= STD_THREASHOLD &&
+                x._2 >= STD_THRESHOLD &&
                   Math.pow((x._2 + 10) / 100, 1.3) * Math.pow(Math.min(x._1.odds, 100), 0.2) > Math.min(1.0 / Math.pow(shareSum, 0.5), 0.15)
 
-              if (shareSum > SHARE_THREASHOLDS(raceCategory) && res.count(_._2.isNaN) < 4) {
+              if (shareSum > SHARE_THRESHOLDS(raceCategory) && res.count(_._2.isNaN) < 4) {
                 betRaceCount += 1
                 if (stdRes.exists(x => cond(x) && x._1.rank == 1)) {
                   winRaceCount += 1
