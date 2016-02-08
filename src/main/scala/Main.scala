@@ -507,7 +507,7 @@ object Main {
                   val std = if (timeStrict.isNaN)
                     time - (timeStrictMean * 2 + timeMean) / 3
                   else
-                    timeStrict - (timeStrictMean * 2 + timeMean) / 3
+                    (timeStrict * 2 + time - (timeStrictMean * 2 + timeMean)) / 3
                   (horse, std)
               }
 
@@ -530,31 +530,60 @@ object Main {
                 case _ =>
               }
 
-              val cond = (x: (PredictData, Double)) =>
+              val score = (x: (PredictData, Double)) =>
+                Math.pow((x._2 + 10) / 100, 1.3) * Math.pow(Math.min(x._1.odds, 100), 0.2)
+              val cond1 = (x: (PredictData, Double)) =>
                 x._2 >= STD_THRESHOLD &&
-                  Math.pow((x._2 + 10) / 100, 1.3) * Math.pow(Math.min(x._1.odds, 100), 0.2) > Math.min(1.0 / Math.pow(shareSum, 0.5), 0.15)
+                  score(x) > Math.min(1.0 / Math.pow(shareSum, 0.5), 0.15)
+              val cond2 = (x: (PredictData, Double)) =>
+                Math.pow((x._2 + 10) / 100, 1.3) > 0.135
 
-              if (shareSum > SHARE_THRESHOLDS(raceCategory) && res.count(_._2.isNaN) < 4) {
+              if (shareSum > SHARE_THRESHOLDS(raceCategory) && res.count(_._2.isNaN) < 4 && stdRes.exists(x => cond1(x))) {
                 betRaceCount += 1
-                if (stdRes.exists(x => cond(x) && x._1.rank == 1)) {
+                if (stdRes.exists(x => cond1(x) && x._1.rank == 1)) {
                   winRaceCount += 1
                 }
                 pw.println("%010d".format(raceId.toLong))
-                stdRes.filter(cond).foreach {
+                stdRes.filter(cond1).foreach {
                   x =>
                     var bonus = 0
                     if (x._1.age >= 72) {
                       bonus += 50
                     }
                     pw.println(true, x)
-                    val betRate = 1.0 / (res.count(_._2.isNaN) + 1) * (100 + bonus)
+                    val betRate = 0.05 / (res.count(_._2.isNaN) + 1) * (100 + bonus) * score(x)
                     betCount += betRate
                     if (x._1.rank == 1) {
                       winCount += betRate
                       oddsCount += x._1.odds * betRate
                     }
                 }
-                stdRes.filterNot(cond).foreach {
+                stdRes.filterNot(cond1).foreach {
+                  x =>
+                    pw.println(false, x)
+                }
+                pw.println
+              } else if (res.count(_._2.isNaN) < 4 && stdRes.exists(x => cond2(x))) {
+                betRaceCount += 1
+                if (stdRes.exists(x => cond2(x) && x._1.rank == 1)) {
+                  winRaceCount += 1
+                }
+                pw.println("%010d".format(raceId.toLong))
+                stdRes.filter(cond2).foreach {
+                  x =>
+                    var bonus = 0
+                    if (x._1.age >= 72) {
+                      bonus += 50
+                    }
+                    pw.println(true, x)
+                    val betRate = 0.05 / (res.count(_._2.isNaN) + 1) * (100 + bonus) * score(x)
+                    betCount += betRate
+                    if (x._1.rank == 1) {
+                      winCount += betRate
+                      oddsCount += x._1.odds * betRate
+                    }
+                }
+                stdRes.filterNot(cond2).foreach {
                   x =>
                     pw.println(false, x)
                 }
