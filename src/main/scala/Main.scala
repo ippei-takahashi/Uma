@@ -422,7 +422,7 @@ object Main {
           val cond2 = (x: (PredictData, Double)) =>
             Math.pow((x._2 + 10) / 100, 1.3) > 0.135
 
-          if (shareSum > SHARE_THRESHOLDS(raceCategory) && res.count(_._2.isNaN) < 4 && stdRes.exists(x => cond1(x))) {
+          if (shareSum > SHARE_THRESHOLDS(raceCategory) && res.take(5).count(_._2.isNaN) < 3 && stdRes.exists(x => cond1(x))) {
             pw.println("%010d".format(raceId.toLong))
             println("%010d".format(raceId.toLong))
             stdRes.filter(cond1).foreach {
@@ -441,7 +441,7 @@ object Main {
                 println(s"id = ${x._1.horseId}, no = ${x._1.horseNo} odds = ${x._1.odds} score = ${x._2}")
             }
             pw.println
-          } else if (res.count(_._2.isNaN) < 4 && stdRes.exists(x => cond2(x))) {
+          } else if (res.take(5).count(_._2.isNaN) < 3 && stdRes.exists(x => cond2(x))) {
             pw.println("%010d".format(raceId.toLong))
             println("%010d".format(raceId.toLong))
             stdRes.filter(cond2).foreach {
