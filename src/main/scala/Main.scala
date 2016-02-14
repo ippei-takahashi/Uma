@@ -372,7 +372,7 @@ object Main {
           pred =>
             pred.copy(prevDataList = horseMap(pred.horseId).filter(x => x.raceDate < pred.raceDate && x.isGoodBaba))
         }
-    }.filter(_._2.head.isGoodBaba)
+    }.filter(x => x._2.head.isGoodBaba && x._2.head.raceDate >= 20100000)
 
     for (i <- 0 until NUM_OF_LOOPS) {
       raceSeq.foreach {
@@ -440,6 +440,8 @@ object Main {
         val stdWinMap = scala.collection.mutable.Map[Int, List[Boolean]]()
         val outFile = new File("result.csv")
         val pw = new PrintWriter(outFile)
+        val moneyArray = scala.collection.mutable.ArrayBuffer[Double]()
+        var money = 100000.0
 
         try {
           raceSeq.foreach {
@@ -534,36 +536,41 @@ object Main {
                 Math.pow((x._2 + 10) / 100, 1.3) * Math.pow(Math.min(x._1.odds, 100), 0.2)
               val cond1 = (x: (PredictData, Double)) =>
                 x._2 >= STD_THRESHOLD &&
-                  score(x) > Math.min(1.0 / Math.pow(shareSum, 0.5), 0.15)
+                  score(x) > Math.min(1.15 / Math.pow(shareSum, 0.5), 0.15)
               val cond2 = (x: (PredictData, Double)) =>
                 Math.pow((x._2 + 10) / 100, 1.3) > 0.135
 
-              if (shareSum > SHARE_THRESHOLDS(raceCategory) && res.take(5).count(_._2.isNaN) < 3 && stdRes.exists(x => cond1(x))) {
+              if (shareSum > SHARE_THRESHOLDS(raceCategory) && res.take(5).count(_._2.isNaN) < 2 &&
+                stdRes.exists(x => cond1(x) || cond2(x))) {
                 betRaceCount += 1
-                if (stdRes.exists(x => cond1(x) && x._1.rank == 1)) {
+                if (stdRes.exists(x => (cond1(x) || cond2(x)) && x._1.rank == 1)) {
                   winRaceCount += 1
                 }
                 pw.println("%010d".format(raceId.toLong))
-                stdRes.filter(cond1).foreach {
+                stdRes.filter(x => cond1(x) || cond2(x)).foreach {
                   x =>
                     var bonus = 0
                     if (x._1.age >= 72) {
                       bonus += 50
                     }
                     pw.println(true, x)
-                    val betRate = 1.0 / (res.count(_._2.isNaN) + 1) * (100 + bonus) * score(x)
+                    val betRate = money * 0.0004 / (res.count(_._2.isNaN) + res.take(5).count(_._2.isNaN) + 1) * (100 + bonus) *
+                      Math.pow((x._2 + 10) / 100, 0.4)
                     betCount += betRate
+                    money -= betRate
                     if (x._1.rank == 1) {
                       winCount += betRate
                       oddsCount += x._1.odds * betRate
+                      money += x._1.odds * betRate
                     }
+                    moneyArray += money
                 }
-                stdRes.filterNot(cond1).foreach {
+                stdRes.filterNot(x => cond1(x) || cond2(x)).foreach {
                   x =>
                     pw.println(false, x)
                 }
                 pw.println
-              } else if (res.take(5).count(_._2.isNaN) < 3 && stdRes.exists(x => cond2(x))) {
+              } else if (res.take(5).count(_._2.isNaN) < 2 && stdRes.exists(x => cond2(x))) {
                 betRaceCount += 1
                 if (stdRes.exists(x => cond2(x) && x._1.rank == 1)) {
                   winRaceCount += 1
@@ -576,12 +583,16 @@ object Main {
                       bonus += 50
                     }
                     pw.println(true, x)
-                    val betRate = 1.0 / (res.count(_._2.isNaN) + 1) * (100 + bonus) * score(x)
+                    val betRate = money * 0.0004 / (res.count(_._2.isNaN) + res.take(5).count(_._2.isNaN) + 1) * (100 + bonus) *
+                      Math.pow((x._2 + 10) / 100, 0.4)
                     betCount += betRate
+                    money -= betRate
                     if (x._1.rank == 1) {
                       winCount += betRate
                       oddsCount += x._1.odds * betRate
+                      money += x._1.odds * betRate
                     }
+                    moneyArray += money
                 }
                 stdRes.filterNot(cond2).foreach {
                   x =>
@@ -595,13 +606,17 @@ object Main {
           pw.close()
         }
 
-        val (xarr, yarr) = stdWinMap.toArray.sortBy(_._1).map {
-          case (std, list) =>
-            val win = list.count(x => x)
-            val lose = list.count(x => !x)
-            (std.toDouble, win.toDouble / (win + lose))
-        }.unzip
         println(betCount, betRaceCount, winRaceCount / betRaceCount, winCount / betCount, oddsCount / winCount, oddsCount / betCount)
+
+        val xarr = moneyArray.indices.toArray.map(_.toDouble)
+        val yarr = moneyArray.toArray
+
+        val f = Figure()
+        val p = f.subplot(0)
+        p += plot(DenseVector(xarr), DenseVector(yarr), '.')
+        p.xlabel = "x axis"
+        p.ylabel = "y axis"
+        f.saveas("lines.png")
 
         val outFileStudy = new File("studyResult.csv")
         val pwStudy = new PrintWriter(outFileStudy)
