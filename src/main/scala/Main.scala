@@ -12,7 +12,7 @@ object Main {
   case class PredictData(horseId: Int, raceDate: Int, raceType: Long, age: Double, rank: Int, odds: Double,
                          stdTime: Double, paceRank: Int, isGoodBaba: Boolean, horseNo: Int, prevDataList: Seq[Data])
 
-  private[this] val TOTAL_MONEY = 600000
+  private[this] val TOTAL_MONEY = 1000000
 
   private[this] val CATEGORY_SHIBA_SHORT = 0
 
@@ -418,7 +418,7 @@ object Main {
             Math.pow((x._2 + 10) / 100, 1.3) * Math.pow(Math.min(x._1.odds, 100), 0.2)
           val cond1 = (x: (PredictData, Double)) =>
             x._2 >= STD_THRESHOLD &&
-              score(x) > Math.min(1.15 / Math.pow(shareSum, 0.5), 0.15)
+              score(x) > Math.min(1.2 / Math.pow(shareSum, 0.5), 0.15)
           val cond2 = (x: (PredictData, Double)) =>
             Math.pow((x._2 + 10) / 100, 1.3) > 0.135
 
