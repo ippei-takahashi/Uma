@@ -12,7 +12,7 @@ object Main {
   case class PredictData(horseId: Int, raceDate: Int, raceType: Long, age: Double, rank: Int, odds: Double,
                          stdTime: Double, paceRank: Int, isGoodBaba: Boolean, horseNo: Int, prevDataList: Seq[Data])
 
-  private[this] val TOTAL_MONEY = 400000
+  private[this] val TOTAL_MONEY = 600000
 
   private[this] val CATEGORY_SHIBA_SHORT = 0
 
@@ -418,30 +418,32 @@ object Main {
             Math.pow((x._2 + 10) / 100, 1.3) * Math.pow(Math.min(x._1.odds, 100), 0.2)
           val cond1 = (x: (PredictData, Double)) =>
             x._2 >= STD_THRESHOLD &&
-              score(x) > Math.min(1.0 / Math.pow(shareSum, 0.5), 0.15)
+              score(x) > Math.min(1.15 / Math.pow(shareSum, 0.5), 0.15)
           val cond2 = (x: (PredictData, Double)) =>
             Math.pow((x._2 + 10) / 100, 1.3) > 0.135
 
-          if (shareSum > SHARE_THRESHOLDS(raceCategory) && res.take(5).count(_._2.isNaN) < 3 && stdRes.exists(x => cond1(x))) {
+          if (shareSum > SHARE_THRESHOLDS(raceCategory) && res.take(5).count(_._2.isNaN) < 2 &&
+            stdRes.exists(x => cond1(x) || cond2(x))) {
             pw.println("%010d".format(raceId.toLong))
             println("%010d".format(raceId.toLong))
-            stdRes.filter(cond1).foreach {
+            stdRes.filter(x => cond1(x) || cond2(x)).foreach {
               x =>
                 var bonus = 0
                 if (x._1.age >= 72) {
                   bonus += 50
                 }
-                val betRate = TOTAL_MONEY * 0.0025 / (res.count(_._2.isNaN) + 1) * (100 + bonus) * score(x)
+                val betRate = TOTAL_MONEY * 0.0004 / (res.count(_._2.isNaN) + res.take(5).count(_._2.isNaN) + 1) * (100 + bonus) *
+                  Math.pow((x._2 + 10) / 100, 0.4)
 
                 pw.println(s"id = ${x._1.horseId}, no = ${x._1.horseNo} odds = ${x._1.odds} score = ${x._2}, betRate = $betRate")
                 println(s"id = ${x._1.horseId}, no = ${x._1.horseNo} odds = ${x._1.odds} score = ${x._2}, betRate = $betRate")
             }
-            stdRes.filterNot(cond1).foreach {
+            stdRes.filterNot(x => cond1(x) || cond2(x)).foreach {
               x =>
                 println(s"id = ${x._1.horseId}, no = ${x._1.horseNo} odds = ${x._1.odds} score = ${x._2}")
             }
             pw.println
-          } else if (res.take(5).count(_._2.isNaN) < 3 && stdRes.exists(x => cond2(x))) {
+          } else if (res.take(5).count(_._2.isNaN) < 2 && stdRes.exists(x => cond2(x))) {
             pw.println("%010d".format(raceId.toLong))
             println("%010d".format(raceId.toLong))
             stdRes.filter(cond2).foreach {
@@ -450,7 +452,8 @@ object Main {
                 if (x._1.age >= 72) {
                   bonus += 50
                 }
-                val betRate = TOTAL_MONEY * 0.0025 / (res.count(_._2.isNaN) + 1) * (100 + bonus) * score(x)
+                val betRate = TOTAL_MONEY * 0.0004 / (res.count(_._2.isNaN) + res.take(5).count(_._2.isNaN) + 1) * (100 + bonus) *
+                  Math.pow((x._2 + 10) / 100, 0.4)
 
                 pw.println(s"id = ${x._1.horseId}, no = ${x._1.horseNo} odds = ${x._1.odds} score = ${x._2}, betRate = $betRate")
                 println(s"id = ${x._1.horseId}, no = ${x._1.horseNo} odds = ${x._1.odds} score = ${x._2}, betRate = $betRate")
