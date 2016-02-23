@@ -536,7 +536,7 @@ object Main {
                 Math.pow((x._2 + 10) / 100, 1.3) * Math.pow(Math.min(x._1.odds, 100), 0.2)
               val cond1 = (x: (PredictData, Double)) =>
                 x._2 >= STD_THRESHOLD &&
-                  score(x) > Math.min(1.15 / Math.pow(shareSum, 0.5), 0.15)
+                  score(x) > Math.min(1.2 / Math.pow(shareSum, 0.5), 0.15)
               val cond2 = (x: (PredictData, Double)) =>
                 Math.pow((x._2 + 10) / 100, 1.3) > 0.135
 
@@ -554,7 +554,7 @@ object Main {
                       bonus += 50
                     }
                     pw.println(true, x)
-                    val betRate = money * 0.0004 / (res.count(_._2.isNaN) + res.take(5).count(_._2.isNaN) + 1) * (100 + bonus) *
+                    val betRate = Math.max(money, 1000000) * 0.0004 / (res.count(_._2.isNaN) + res.take(5).count(_._2.isNaN) + 1) * (100 + bonus) *
                       Math.pow((x._2 + 10) / 100, 0.4)
                     betCount += betRate
                     money -= betRate
@@ -583,7 +583,7 @@ object Main {
                       bonus += 50
                     }
                     pw.println(true, x)
-                    val betRate = money * 0.0004 / (res.count(_._2.isNaN) + res.take(5).count(_._2.isNaN) + 1) * (100 + bonus) *
+                    val betRate = Math.max(money, 1000000) * 0.0004 / (res.count(_._2.isNaN) + res.take(5).count(_._2.isNaN) + 1) * (100 + bonus) *
                       Math.pow((x._2 + 10) / 100, 0.4)
                     betCount += betRate
                     money -= betRate
@@ -606,6 +606,7 @@ object Main {
           pw.close()
         }
 
+        println(moneyArray.min)
         println(betCount, betRaceCount, winRaceCount / betRaceCount, winCount / betCount, oddsCount / winCount, oddsCount / betCount)
 
         val xarr = moneyArray.indices.toArray.map(_.toDouble)
