@@ -507,7 +507,7 @@ object Main {
 
   def getSecondaryRaceCategory(raceCategory: Int) = raceCategory match {
     case CATEGORY_SHIBA_SHORT =>
-      Nil
+      List(CATEGORY_SHIBA_MIDDLE)
     case CATEGORY_SHIBA_MIDDLE =>
       List(CATEGORY_SHIBA_SEMI_LONG)
     case CATEGORY_SHIBA_SEMI_LONG =>
@@ -523,9 +523,9 @@ object Main {
     case CATEGORY_DIRT_MIDDLE =>
       List(CATEGORY_DIRT_SHORT)
     case CATEGORY_DIRT_SEMI_LONG =>
-      Nil
+      List(CATEGORY_DIRT_LONG)
     case CATEGORY_DIRT_LONG =>
-      Nil
+      List(CATEGORY_DIRT_SEMI_LONG)
   }
 
   def makeRaceType(vector: DenseVector[Double], raceId: Long): Long = {
