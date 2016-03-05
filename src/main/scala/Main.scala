@@ -547,6 +547,9 @@ object Main {
               else
                 0) + 1)
 
+              val oddsTop = stdRes.sortBy(_._1.odds).head
+              val oddsSecond = stdRes.sortBy(_._1.odds).apply(1)
+
               if (shareSum > SHARE_THRESHOLDS(raceCategory) && res.take(5).count(_._2.isNaN) < 2 &&
                 stdRes.exists(x => cond1(x) || cond2(x))) {
                 betRaceCount += 1
@@ -559,6 +562,12 @@ object Main {
                     var bonus = 0
                     if (x._1.age >= 72) {
                       bonus += 50
+                    }
+                    if (oddsTop._2 < 0) {
+                      bonus += 10
+                    }
+                    if (oddsSecond._2 < 0) {
+                      bonus += 10
                     }
                     pw.println(true, x)
                     val betRate = Math.max(money, 1000000) * 0.001 / (res.count(_._2.isNaN) + res.take(5).count(_._2.isNaN) + 1) * (100 + bonus) *
@@ -588,6 +597,12 @@ object Main {
                     var bonus = 0
                     if (x._1.age >= 72) {
                       bonus += 50
+                    }
+                    if (oddsTop._2 < 0) {
+                      bonus += 10
+                    }
+                    if (oddsSecond._2 < 0) {
+                      bonus += 10
                     }
                     pw.println(true, x)
                     val betRate = Math.max(money, 1000000) * 0.001 / (res.count(_._2.isNaN) + res.take(5).count(_._2.isNaN) + 1) * (100 + bonus) *
