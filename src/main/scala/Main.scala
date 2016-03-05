@@ -422,6 +422,18 @@ object Main {
           val cond2 = (x: (PredictData, Double)) =>
             Math.pow((x._2 + 10) / 100, 1.3) > 0.135
 
+
+          val targetNum = Math.sqrt((if (shareSum > SHARE_THRESHOLDS(raceCategory) && res.take(5).count(_._2.isNaN) < 2)
+            stdRes.count(x => cond1(x) || cond2(x))
+          else if (res.take(5).count(_._2.isNaN) < 2)
+            stdRes.count(cond2)
+          else
+            0) + 1)
+
+          val oddsTop = stdRes.sortBy(_._1.odds).head
+          val oddsSecond = stdRes.sortBy(_._1.odds).apply(1)
+
+
           if (shareSum > SHARE_THRESHOLDS(raceCategory) && res.take(5).count(_._2.isNaN) < 2 &&
             stdRes.exists(x => cond1(x) || cond2(x))) {
             pw.println("%010d".format(raceId.toLong))
@@ -432,8 +444,14 @@ object Main {
                 if (x._1.age >= 72) {
                   bonus += 50
                 }
-                val betRate = TOTAL_MONEY * 0.0004 / (res.count(_._2.isNaN) + res.take(5).count(_._2.isNaN) + 1) * (100 + bonus) *
-                  Math.pow((x._2 + 10) / 100, 0.4)
+                if (oddsTop._2 < 0) {
+                  bonus += 10
+                }
+                if (oddsSecond._2 < 0) {
+                  bonus += 10
+                }
+                val betRate = TOTAL_MONEY * 0.001 / (res.count(_._2.isNaN) + res.take(5).count(_._2.isNaN) + 1) * (100 + bonus) *
+                  Math.pow((x._2 + 10) / 100, 0.4) / targetNum
 
                 pw.println(s"id = ${x._1.horseId}, no = ${x._1.horseNo} odds = ${x._1.odds} score = ${x._2}, betRate = $betRate")
                 println(s"id = ${x._1.horseId}, no = ${x._1.horseNo} odds = ${x._1.odds} score = ${x._2}, betRate = $betRate")
@@ -452,8 +470,14 @@ object Main {
                 if (x._1.age >= 72) {
                   bonus += 50
                 }
-                val betRate = TOTAL_MONEY * 0.0004 / (res.count(_._2.isNaN) + res.take(5).count(_._2.isNaN) + 1) * (100 + bonus) *
-                  Math.pow((x._2 + 10) / 100, 0.4)
+                if (oddsTop._2 < 0) {
+                  bonus += 10
+                }
+                if (oddsSecond._2 < 0) {
+                  bonus += 10
+                }
+                val betRate = TOTAL_MONEY * 0.001 / (res.count(_._2.isNaN) + res.take(5).count(_._2.isNaN) + 1) * (100 + bonus) *
+                  Math.pow((x._2 + 10) / 100, 0.4) / targetNum
 
                 pw.println(s"id = ${x._1.horseId}, no = ${x._1.horseNo} odds = ${x._1.odds} score = ${x._2}, betRate = $betRate")
                 println(s"id = ${x._1.horseId}, no = ${x._1.horseNo} odds = ${x._1.odds} score = ${x._2}, betRate = $betRate")
