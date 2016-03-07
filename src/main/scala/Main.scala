@@ -333,7 +333,15 @@ object Main {
 
     try {
       raceSeq.foreach {
-        case (raceId, horses) =>
+        case (raceId, horses) if Seq(
+          CATEGORY_SHIBA_SHORT,
+          CATEGORY_SHIBA_MIDDLE,
+          CATEGORY_SHIBA_SEMI_LONG,
+          CATEGORY_DIRT_SHORT,
+          CATEGORY_DIRT_MIDDLE,
+          CATEGORY_DIRT_SEMI_LONG,
+          CATEGORY_DIRT_LONG
+        ).contains(getRaceCategory(horses.head.raceType)) =>
           val raceCategory = getRaceCategory(horses.head.raceType)
           val secondaryRaceCategory = getSecondaryRaceCategory(raceCategory)
           val raceDate = horses.head.raceDate
@@ -488,7 +496,7 @@ object Main {
             }
             pw.println
           }
-            case _ =>
+        case _ =>
       }
     } catch {
       case e: Exception =>
