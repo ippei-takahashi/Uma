@@ -723,4 +723,19 @@ object Main {
     val babaCode = (raceId / 1000000) % 100
     babaCode * 1000000 + vector(5).toLong * 100000 + vector(2).toLong * 10000 + vector(6).toLong
   }
+
+  def dateDiff(date1: Long, date2: Long): Double = {
+    val year1 = date1 / 10000
+    val month1 = (date1 % 10000) / 100
+    val day1 = date1 % 100
+
+    val year2 = date2 / 10000
+    val month2 = (date2 % 10000) / 100
+    val day2 = date2 % 100
+
+    Math.abs(
+      year1 * 10.0 + month1 * 10.0 / 12.0 + day1 / 30.0 -
+        (year2 * 10.0 + month2 * 10.0 / 12.0 + day2 / 30.0)
+    )
+  }
 }
