@@ -453,7 +453,9 @@ object Main {
               CATEGORY_DIRT_MIDDLE,
               CATEGORY_DIRT_SEMI_LONG,
               CATEGORY_DIRT_LONG
-            ).contains(getRaceCategory(horses.head.raceType)) =>
+            ).contains(getRaceCategory(horses.head.raceType)) &&
+              horses.map(_.prevDataList.length).sorted.apply(horses.length / 2) >= 3 =>
+
               val raceCategory = getRaceCategory(horses.head.raceType)
               val secondaryRaceCategory = getSecondaryRaceCategory(raceCategory)
               val raceDate = horses.head.raceDate
