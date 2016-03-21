@@ -584,12 +584,16 @@ object Main {
                     pw.println(true, x)
                     val betRate = Math.max(money, 1000000) * 0.001 / (res.count(_._2.isNaN) + res.take(5).count(_._2.isNaN) + 1) * (100 + bonus) *
                       Math.pow((x._2 + 10) / 100, 0.4) / targetNum
-                    betCount += betRate
-                    money -= betRate
+                    betCount += betRate * 1.5
+                    money -= betRate * 1.5
                     if (x._1.rank == 1) {
                       winCount += betRate
                       oddsCount += x._1.odds * betRate
                       money += x._1.odds * betRate
+                    }
+                    if (x._1.rank <= 3) {
+                      oddsCount += x._1.oddsFuku * betRate * 0.5
+                      money += x._1.oddsFuku * betRate * 0.5
                     }
                     moneyArray += money
                 }
