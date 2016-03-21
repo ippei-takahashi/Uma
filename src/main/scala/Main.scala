@@ -7,10 +7,11 @@ object Main {
   type Gene = DenseVector[Double]
 
   case class Data(raceDate: Int, raceType: Long, age: Int, rank: Int, odds: Double, stdTime: Double, raceId: Long,
-                  paceRank: Int, isGoodBaba: Boolean, horseNo: Int)
+                  paceRank: Int, isGoodBaba: Boolean, horseNo: Int, raceGrade: Int)
 
   case class PredictData(horseId: Int, raceDate: Int, raceType: Long, age: Double, rank: Int, odds: Double,
-                         stdTime: Double, paceRank: Int, isGoodBaba: Boolean, horseNo: Int, prevDataList: Seq[Data])
+                         stdTime: Double, paceRank: Int, isGoodBaba: Boolean, horseNo: Int, raceGrade: Int,
+                         prevDataList: Seq[Data])
 
   private[this] val TOTAL_MONEY = 1000000
 
@@ -318,13 +319,13 @@ object Main {
               new Data(raceDate = d(2).toInt, age = d(3).toInt, rank = rank,
                 odds = d(d.length - 6), stdTime = stdTime, raceId = raceId.toLong,
                 raceType = raceType, paceRank = paceRank, isGoodBaba = x(11) + x(12) == 1.0 && x(7) + x(8) == 1.0,
-                horseNo = horseNo)
+                horseNo = horseNo, raceGrade = d(d.length - 1).toInt)
             }.toList.sortBy(-_.raceDate)
             val d = arr2.maxBy(_ (2))
             new PredictData(horseId = d(1).toInt, raceDate = head.raceDate, age = head.age, rank = head.rank,
               odds = head.odds, stdTime = head.stdTime, raceType = head.raceType,
               isGoodBaba = head.isGoodBaba, horseNo = head.horseNo,
-              paceRank = head.paceRank, prevDataList = tail)
+              paceRank = head.paceRank, raceGrade = d(d.length - 1).toInt, prevDataList = tail)
         }.toList
     }
 
@@ -341,7 +342,9 @@ object Main {
           CATEGORY_DIRT_MIDDLE,
           CATEGORY_DIRT_SEMI_LONG,
           CATEGORY_DIRT_LONG
-        ).contains(getRaceCategory(horses.head.raceType)) =>
+        ).contains(getRaceCategory(horses.head.raceType)) &&
+          horses.map(_.prevDataList.length).sorted.apply(horses.length / 2) >= 3 &&
+          (horses.head.raceGrade == 500 || horses.head.raceGrade > 1000) =>
           val raceCategory = getRaceCategory(horses.head.raceType)
           val secondaryRaceCategory = getSecondaryRaceCategory(raceCategory)
           val raceDate = horses.head.raceDate
