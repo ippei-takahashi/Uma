@@ -298,16 +298,16 @@ object Main {
               val raceId = d(0)
               val x = d(3 until data.cols)
               val raceType = makeRaceType(x, raceId.toLong)
-              val paceRank = d(d.length - 9).toInt match {
-                case 0 => d(d.length - 10).toInt match {
-                  case 0 => d(d.length - 11).toInt
+              val paceRank = d(d.length - 10).toInt match {
+                case 0 => d(d.length - 11).toInt match {
+                  case 0 => d(d.length - 12).toInt
                   case n => n
                 }
                 case n => n
               }
-              val rank = d(d.length - 1).toInt
-              val time = d(d.length - 6)
-              val time3f = d(d.length - 8)
+              val rank = d(d.length - 2).toInt
+              val time = d(d.length - 7)
+              val time3f = d(d.length - 9)
               val dist = raceType % 10000
               val positionBonus = if (paceRank <= 6)
                 0.1 * (paceRank - 6) * Math.pow(dist / 1000, 0.3)
@@ -316,7 +316,7 @@ object Main {
               val horseNo = x(1).toInt
               val stdTime = time / 3 + time3f + positionBonus
               new Data(raceDate = d(2).toInt, age = d(3).toInt, rank = rank,
-                odds = d(d.length - 5), stdTime = stdTime, raceId = raceId.toLong,
+                odds = d(d.length - 6), stdTime = stdTime, raceId = raceId.toLong,
                 raceType = raceType, paceRank = paceRank, isGoodBaba = x(11) + x(12) == 1.0 && x(7) + x(8) == 1.0,
                 horseNo = horseNo)
             }.toList.sortBy(-_.raceDate)
