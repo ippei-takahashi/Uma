@@ -548,7 +548,7 @@ object Main {
                 Math.pow((x._2 + 10) / 100, 1.3) * Math.pow(Math.min(x._1.odds, 100), 0.2)
               val cond1 = (x: (PredictData, Double)) =>
                 x._2 >= STD_THRESHOLD &&
-                  score(x) > Math.min(1.2 / Math.pow(shareSum, 0.5), 0.15)
+                  score(x) > Math.min(1.15 / Math.pow(shareSum, 0.5), 0.15)
               val cond2 = (x: (PredictData, Double)) =>
                 Math.pow((x._2 + 10) / 100, 1.3) > 0.135
 
@@ -582,7 +582,7 @@ object Main {
                       bonus += 10
                     }
                     pw.println(true, x)
-                    val betRate = Math.max(money, 1000000) * 0.001 / (res.count(_._2.isNaN) + res.take(5).count(_._2.isNaN) + 1) * (100 + bonus) *
+                    val betRate = Math.max(money, 1000000) * 0.0012 / (res.count(_._2.isNaN) + res.take(5).count(_._2.isNaN) + 1) * (100 + bonus) *
                       Math.pow((x._2 + 10) / 100, 0.4) / targetNum
                     betCount += betRate * 1.5
                     money -= betRate * 1.5
@@ -598,41 +598,6 @@ object Main {
                     moneyArray += money
                 }
                 stdRes.filterNot(x => cond1(x) || cond2(x)).foreach {
-                  x =>
-                    pw.println(false, x)
-                }
-                pw.println
-              } else if (res.take(5).count(_._2.isNaN) < 2 && stdRes.exists(x => cond2(x))) {
-                betRaceCount += 1
-                if (stdRes.exists(x => cond2(x) && x._1.rank == 1)) {
-                  winRaceCount += 1
-                }
-                pw.println("%010d".format(raceId.toLong))
-                stdRes.filter(cond2).foreach {
-                  x =>
-                    var bonus = 0
-                    if (x._1.age >= 72) {
-                      bonus += 50
-                    }
-                    if (oddsTop._2 < 0) {
-                      bonus += 10
-                    }
-                    if (oddsSecond._2 < 0) {
-                      bonus += 10
-                    }
-                    pw.println(true, x)
-                    val betRate = Math.max(money, 1000000) * 0.001 / (res.count(_._2.isNaN) + res.take(5).count(_._2.isNaN) + 1) * (100 + bonus) *
-                      Math.pow((x._2 + 10) / 100, 0.4) / targetNum
-                    betCount += betRate
-                    money -= betRate
-                    if (x._1.rank == 1) {
-                      winCount += betRate
-                      oddsCount += x._1.odds * betRate
-                      money += x._1.odds * betRate
-                    }
-                    moneyArray += money
-                }
-                stdRes.filterNot(cond2).foreach {
                   x =>
                     pw.println(false, x)
                 }
