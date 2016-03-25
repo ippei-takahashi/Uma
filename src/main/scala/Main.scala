@@ -587,7 +587,7 @@ object Main {
                     betCount += betRate * 1.5
                     money -= betRate * 1.5
                     if (x._1.rank == 1) {
-                      winCount += betRate
+                      winCount += betRate * 1.5
                       oddsCount += x._1.odds * betRate
                       money += x._1.odds * betRate
                     }
