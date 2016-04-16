@@ -8,6 +8,8 @@ libraryDependencies += "org.scala-lang.modules" %% "scala-xml" % "1.0.2"
 
 libraryDependencies += "nu.validator.htmlparser" % "htmlparser" % "1.4"
 
+libraryDependencies += "net.databinder.dispatch" %% "dispatch-core" % "0.11.2"
+
 libraryDependencies  ++= Seq(
   // other dependencies here
   "org.scalanlp" %% "breeze" % "0.11.2",

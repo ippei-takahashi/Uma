@@ -3,6 +3,12 @@ import java.io._
 import breeze.linalg._
 import breeze.stats._
 
+import dispatch._
+import dispatch.Defaults._
+
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
+
 object Main {
   type Gene = DenseVector[Double]
 
@@ -280,6 +286,26 @@ object Main {
 
   def main(args: Array[String]) {
 
+    val request = url("http://160.16.223.128:8124/?url=16030103")
+    val responseF = Http(request OK (r => r))
+    responseF.onSuccess {
+      case response =>
+        val reader = new BufferedReader(new InputStreamReader(response.getResponseBodyAsStream))
+        val pw = new PrintWriter(new BufferedWriter(new OutputStreamWriter(new FileOutputStream("data.csv"), "UTF-8")))
+
+        try {
+          Stream.continually(reader.readLine()).takeWhile(_ != null).
+            foreach(str => pw.println(str))
+        } catch {
+          case e: Exception =>
+            println(e.getMessage)
+        } finally {
+          pw.close()
+          reader.close()
+        }
+    }
+    Await.ready(responseF, Duration.Inf)
+
     val dataCSV = new File("data.csv")
 
     val data: DenseMatrix[Double] = csvread(dataCSV)
@@ -461,7 +487,7 @@ object Main {
                 if (oddsSecond._2 < 0) {
                   bonus += 10
                 }
-                val betRate = TOTAL_MONEY * 0.0012 / (res.count(_._2.isNaN) + res.take(5).count(_._2.isNaN) + 1) * (100 + bonus) *
+                val betRate = TOTAL_MONEY * 0.001 / (res.count(_._2.isNaN) + res.take(5).count(_._2.isNaN) + 1) * (100 + bonus) *
                   Math.pow((x._2 + 10) / 100, 0.4) / targetNum
 
                 pw.println(s"id = ${x._1.horseId}, no = ${x._1.horseNo} odds = ${x._1.odds} score = ${x._2}, 単勝 = $betRate, 複勝 = ${betRate * 0.5}")
