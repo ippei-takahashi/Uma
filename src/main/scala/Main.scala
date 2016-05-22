@@ -286,7 +286,9 @@ object Main {
 
   def main(args: Array[String]) {
 
-    val request = url("http://160.16.223.128:8124/?url=16030103")
+    val arg = args.head
+
+    val request = url(s"http://160.16.223.128:8124/?url=$arg")
     val responseF = Http(request OK (r => r))
     responseF.onSuccess {
       case response =>
