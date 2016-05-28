@@ -19,7 +19,7 @@ object Main {
                          stdTime: Double, paceRank: Int, isGoodBaba: Boolean, horseNo: Int, raceGrade: Int,
                          prevDataList: Seq[Data])
 
-  private[this] val TOTAL_MONEY = 1000000
+  private[this] val TOTAL_MONEY = 500000
 
   private[this] val CATEGORY_SHIBA_SHORT = 0
 
@@ -492,8 +492,8 @@ object Main {
                 val betRate = TOTAL_MONEY * 0.001 / (res.count(_._2.isNaN) + res.take(5).count(_._2.isNaN) + 1) * (100 + bonus) *
                   Math.pow((x._2 + 10) / 100, 0.4) / targetNum
 
-                pw.println(s"id = ${x._1.horseId}, no = ${x._1.horseNo} odds = ${x._1.odds} score = ${x._2}, 単勝 = $betRate, 複勝 = ${betRate * 0.5}")
-                println(s"id = ${x._1.horseId}, no = ${x._1.horseNo} odds = ${x._1.odds} score = ${x._2}, 単勝 = $betRate, 複勝 = ${betRate * 0.5}")
+                pw.println(s"id = ${x._1.horseId}, no = ${x._1.horseNo} odds = ${x._1.odds} score = ${x._2}, 単勝 = $betRate")
+                println(s"id = ${x._1.horseId}, no = ${x._1.horseNo} odds = ${x._1.odds} score = ${x._2}, 単勝 = $betRate")
             }
             stdRes.filterNot(x => cond1(x) || cond2(x)).foreach {
               x =>
